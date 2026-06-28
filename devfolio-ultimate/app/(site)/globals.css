@@ -1,0 +1,89 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --color-primary: #4e80f7;
+  --color-secondary: #686d76;
+  --color-dark: #0c111d;
+  --color-light: #F9FAFB;
+  --color-text: #000000;
+  --color-bg: #ffffff;
+  
+  --color-deep-dark: #030712;
+  --color-tag-border: #1f293d;
+  --color-description: #686d76;
+  --color-muted-gray: #4b5563;
+  --color-accent-blue: #4e80f7;
+  --color-sky-blue: #70a1ff;
+  --color-brand-blue: #3742fa;
+
+  --font-sans: 'Inter', sans-serif;
+
+  --animation-fade-in: fadeIn 0.5s ease-in-out;
+  --animation-slide-up: slideUp 0.5s ease-in-out;
+}
+
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+a {
+  transition: all 0.2s ease;
+}
+
+@layer components {
+  .container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .btn {
+    @apply px-4 py-2 rounded-md font-medium transition-colors duration-200;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary/90;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary text-white hover:bg-secondary/90;
+  }
+  
+  .section-title {
+    @apply text-3xl font-bold mb-8 text-center;
+  }
+} 
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes float-drift {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(12px, -15px, 0);
+  }
+}
+
+.animate-float-drift {
+  animation-name: float-drift;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  will-change: transform;
+}
