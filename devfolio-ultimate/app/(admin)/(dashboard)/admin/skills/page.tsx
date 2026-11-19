@@ -1,48 +1,14 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import * as FaIcons from "react-icons/fa";
+import { SKILL_ICON_LIST, SKILL_ICON_MAP, getSkillIcon } from "@/lib/skillIcons";
 import { Modal } from "../../../components/ui/modal";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "../../../components/ui/table";
 import Button from "../../../components/ui/button/Button";
 import Label from "../../../components/form/Label";
 import { getApiBaseUrl } from "@/lib/utils";
 
-// ─── Curated icon list (Font Awesome) ────────────────────────────────────────
-const ICON_LIST = [
-  // Development
-  "FaCode", "FaLaptopCode", "FaTerminal", "FaCodeBranch", "FaBug",
-  "FaServer", "FaDatabase", "FaCloud", "FaCloudUploadAlt", "FaDocker",
-  "FaGitAlt", "FaGithub", "FaNpm", "FaNodeJs",
-  // Languages & Frameworks
-  "FaPhp", "FaPython", "FaJava", "FaSwift", "FaRust",
-  "FaReact", "FaVuejs", "FaAngular", "FaLaravel", "FaWordpress",
-  "FaSass", "FaHtml5", "FaCss3Alt", "FaJs",
-  // Design
-  "FaPalette", "FaPaintBrush", "FaFigma", "FaVectorSquare",
-  "FaMobileAlt", "FaTabletAlt", "FaDesktop", "FaBezierCurve",
-  // Infrastructure & Cloud
-  "FaAws", "FaLinux", "FaUbuntu", "FaWindows",
-  "FaNetworkWired", "FaShieldAlt", "FaLock", "FaKey",
-  // Tools
-  "FaTools", "FaWrench", "FaCog", "FaCogs", "FaRobot",
-  "FaMicrochip", "FaCubes", "FaCube", "FaBoxes",
-  // Data & Analytics  
-  "FaChartBar", "FaChartLine", "FaChartPie", "FaBrainCircuit",
-  "FaSearch", "FaFilter", "FaTable", "FaFileCode",
-  // Testing & QA
-  "FaVial", "FaFlask", "FaCheckCircle", "FaTasks", "FaClipboardList",
-  // Communication & API
-  "FaPlug", "FaExchangeAlt", "FaBolt", "FaBroadcastTower",
-  "FaEnvelope", "FaComments", "FaPhone", "FaVideo",
-  // Business & Management
-  "FaProjectDiagram", "FaSitemap", "FaUsersCog", "FaLayerGroup",
-  "FaBriefcase", "FaChalkboardTeacher", "FaGraduationCap", "FaCertificate",
-] as const;
-
-type FaIconKey = keyof typeof FaIcons;
-
-// ─── Icon Picker Component ────────────────────────────────────────────────────
+// ─── Modern Icon Picker Component ─────────────────────────────────────────────
 function IconPicker({
   value,
   onChange,
@@ -55,135 +21,82 @@ function IconPicker({
 
   const filtered = useMemo(
     () =>
-      ICON_LIST.filter((name) =>
+      SKILL_ICON_LIST.filter((name) =>
         name.toLowerCase().includes(search.toLowerCase())
       ),
     [search]
   );
 
-  const SelectedIcon = value ? (FaIcons[value as FaIconKey] as React.ComponentType<{ size?: number; color?: string }>) : null;
+  const SelectedIcon = value ? getSkillIcon(value) : null;
 
   return (
-    <div style={{ position: "relative" }}>
-      {/* Trigger button */}
+    <div className="relative space-y-2">
+      {/* Trigger Button */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        style={{
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          gap: "0.75rem",
-          padding: "0.625rem 1rem",
-          borderRadius: "0.5rem",
-          border: "1px solid #374151",
-          background: "#111827",
-          color: value ? "#f9fafb" : "#6b7280",
-          cursor: "pointer",
-          fontSize: "0.875rem",
-          textAlign: "left",
-          transition: "border-color 0.2s",
-        }}
-        onMouseEnter={(e) =>
-          ((e.currentTarget as HTMLButtonElement).style.borderColor = "#6366f1")
-        }
-        onMouseLeave={(e) =>
-          ((e.currentTarget as HTMLButtonElement).style.borderColor = "#374151")
-        }
+        className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-900/80 hover:bg-slate-900 text-sm text-left transition-all group"
       >
-        {SelectedIcon ? (
-          <>
-            <span
-              style={{
-                width: "2rem",
-                height: "2rem",
-                borderRadius: "0.375rem",
-                background: "#312e81",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <SelectedIcon size={16} color="#a5b4fc" />
+        <div className="flex items-center gap-3">
+          {SelectedIcon ? (
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-base">
+              <SelectedIcon size={16} />
+            </div>
+          ) : (
+            <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-500 flex items-center justify-center text-xs">
+              ⚡
+            </div>
+          )}
+          <div>
+            <span className="font-mono text-xs font-semibold text-white block">
+              {value || "Select Icon from Library"}
             </span>
-            <span style={{ fontWeight: 600, color: "#a5b4fc", fontFamily: "monospace" }}>
-              {value}
+            <span className="text-[10px] text-slate-500">
+              {value ? "Click to change icon" : "FontAwesome icon set"}
             </span>
-          </>
-        ) : (
-          <span style={{ color: "#6b7280" }}>🎨 Click to pick an icon…</span>
-        )}
-        <span style={{ marginLeft: "auto", color: "#6b7280", fontSize: "0.75rem" }}>
-          {open ? "▲" : "▼"}
-        </span>
+          </div>
+        </div>
+
+        <svg
+          className={`w-4 h-4 text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+        </svg>
       </button>
 
-      {/* Picker panel */}
+      {/* Dropdown Menu */}
       {open && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 6px)",
-            left: 0,
-            right: 0,
-            zIndex: 50,
-            background: "#0f172a",
-            border: "1px solid #334155",
-            borderRadius: "0.75rem",
-            boxShadow: "0 20px 40px rgba(0,0,0,0.5)",
-            overflow: "hidden",
-          }}
-        >
-          {/* Search */}
-          <div style={{ padding: "0.75rem", borderBottom: "1px solid #1e293b" }}>
+        <div className="absolute z-50 left-0 right-0 top-full mt-2 rounded-xl border border-slate-800 bg-slate-950/95 backdrop-blur-2xl shadow-2xl p-3 space-y-3">
+          {/* Search inside picker */}
+          <div className="relative">
+            <svg
+              className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             <input
-              autoFocus
+              type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search icons… (e.g. code, server, database)"
-              style={{
-                width: "100%",
-                padding: "0.5rem 0.75rem",
-                borderRadius: "0.5rem",
-                border: "1px solid #334155",
-                background: "#1e293b",
-                color: "#f1f5f9",
-                fontSize: "0.8125rem",
-                outline: "none",
-                boxSizing: "border-box",
-              }}
+              placeholder="Search icons (e.g. react, code, docker)..."
+              className="w-full h-8 pl-8 pr-3 text-xs rounded-lg bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+              autoFocus
             />
           </div>
 
-          {/* Icons grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))",
-              gap: "0.25rem",
-              padding: "0.75rem",
-              maxHeight: "260px",
-              overflowY: "auto",
-            }}
-          >
-            {filtered.length === 0 && (
-              <p
-                style={{
-                  gridColumn: "1/-1",
-                  textAlign: "center",
-                  color: "#475569",
-                  fontSize: "0.8125rem",
-                  padding: "1.5rem",
-                }}
-              >
-                No icons found for &ldquo;{search}&rdquo;
-              </p>
-            )}
+          {/* Grid of Icons */}
+          <div className="grid grid-cols-6 sm:grid-cols-8 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar p-1">
             {filtered.map((name) => {
-              const Ico = FaIcons[name as FaIconKey] as React.ComponentType<{ size?: number; color?: string }>;
+              const Ico = SKILL_ICON_MAP[name];
               if (!Ico) return null;
               const isSelected = value === name;
+
               return (
                 <button
                   key={name}
@@ -191,41 +104,16 @@ function IconPicker({
                   onClick={() => {
                     onChange(name);
                     setOpen(false);
-                    setSearch("");
                   }}
                   title={name}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "0.375rem",
-                    padding: "0.625rem 0.25rem",
-                    borderRadius: "0.5rem",
-                    border: `1px solid ${isSelected ? "#6366f1" : "transparent"}`,
-                    background: isSelected ? "#312e8188" : "transparent",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected)
-                      (e.currentTarget as HTMLButtonElement).style.background = "#1e293b";
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected)
-                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                  }}
+                  className={`flex flex-col items-center justify-center p-2 rounded-lg transition-all ${
+                    isSelected
+                      ? "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                      : "text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent"
+                  }`}
                 >
-                  <Ico size={20} color={isSelected ? "#a5b4fc" : "#94a3b8"} />
-                  <span
-                    style={{
-                      fontSize: "0.6rem",
-                      color: isSelected ? "#a5b4fc" : "#64748b",
-                      textAlign: "center",
-                      lineHeight: 1.2,
-                      wordBreak: "break-all",
-                    }}
-                  >
+                  <Ico size={16} />
+                  <span className="text-[9px] font-mono truncate max-w-[42px] mt-1 text-slate-400">
                     {name.replace(/^Fa/, "")}
                   </span>
                 </button>
@@ -233,58 +121,38 @@ function IconPicker({
             })}
           </div>
 
-          {/* Clear btn */}
+          {/* Clear Button */}
           {value && (
-            <div style={{ padding: "0.5rem 0.75rem", borderTop: "1px solid #1e293b" }}>
+            <div className="pt-2 border-t border-slate-800 flex justify-end">
               <button
                 type="button"
-                onClick={() => { onChange(""); setOpen(false); }}
-                style={{
-                  fontSize: "0.75rem",
-                  color: "#ef4444",
-                  background: "transparent",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: 0,
+                onClick={() => {
+                  onChange("");
+                  setOpen(false);
                 }}
+                className="text-xs text-rose-400 hover:text-rose-300 font-medium transition-colors"
               >
-                ✕ Clear selection
+                Clear Selected Icon
               </button>
             </div>
           )}
         </div>
       )}
 
-      {/* Manual input — always visible, stays in sync with the picker */}
-      <div style={{ marginTop: "0.5rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <span style={{ color: "#475569", fontSize: "0.75rem", whiteSpace: "nowrap" }}>
-          أو اكتب يدوياً:
-        </span>
+      {/* Manual input fallback */}
+      <div className="flex items-center gap-2">
+        <span className="text-[11px] text-slate-500 shrink-0">Or manual class:</span>
         <input
           type="text"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="مثال: FaCode أو SiDocker أو FaRobot"
-          style={{
-            flex: 1,
-            padding: "0.4rem 0.75rem",
-            borderRadius: "0.5rem",
-            border: "1px solid #334155",
-            background: "#1e293b",
-            color: "#f1f5f9",
-            fontSize: "0.8125rem",
-            outline: "none",
-            fontFamily: "monospace",
-            transition: "border-color 0.2s",
-          }}
-          onFocus={(e) => ((e.target as HTMLInputElement).style.borderColor = "#6366f1")}
-          onBlur={(e) => ((e.target as HTMLInputElement).style.borderColor = "#334155")}
+          placeholder="FaReact, FaPhp, FaNodeJs..."
+          className="flex-1 h-8 px-3 text-xs font-mono rounded-lg bg-slate-900 border border-slate-800 text-slate-300 placeholder-slate-600 focus:outline-none focus:border-cyan-500"
         />
       </div>
     </div>
   );
 }
-
 
 interface SkillGroupItem {
   id: number;
@@ -307,6 +175,9 @@ export default function AdminSkillsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
 
+  // Search filter
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Modal & Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -316,7 +187,7 @@ export default function AdminSkillsPage() {
   // Form Fields
   const [title, setTitle] = useState("");
   const [icon, setIcon] = useState("");
-  const [skills, setSkills] = useState<string[]>([]);
+  const [skills, setSkills] = useState<string[]>([""]);
 
   // Errors state
   const [errors, setErrors] = useState<Record<string, string[]>>({});
@@ -361,8 +232,8 @@ export default function AdminSkillsPage() {
         }
       }
     } catch (err: any) {
-      console.error("Fetch skill groups failed:", err);
-      setGlobalError("Failed to load skill groups. Ensure backend server is online.");
+      console.error("Fetch skills failed:", err);
+      setGlobalError("Failed to load skills. Ensure backend server is online.");
     } finally {
       setIsLoading(false);
     }
@@ -372,12 +243,29 @@ export default function AdminSkillsPage() {
     fetchSkillGroups(currentPage);
   }, [currentPage]);
 
+  // Filtered skills
+  const filteredSkillGroups = useMemo(() => {
+    if (!searchQuery) return skillGroups;
+    return skillGroups.filter((group) => {
+      const inTitle = group.title.toLowerCase().includes(searchQuery.toLowerCase());
+      const inSkills = group.skills && group.skills.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase()));
+      return inTitle || inSkills;
+    });
+  }, [skillGroups, searchQuery]);
+
+  // Metrics
+  const stats = useMemo(() => {
+    const totalGroups = meta?.total ?? skillGroups.length;
+    const totalSkillsCount = skillGroups.reduce((acc, g) => acc + (g.skills?.length || 0), 0);
+    return { totalGroups, totalSkillsCount };
+  }, [skillGroups, meta]);
+
   const openCreateModal = () => {
     setIsEditing(false);
     setEditingId(null);
     setTitle("");
     setIcon("");
-    setSkills([""]); // Initial empty skill input
+    setSkills([""]);
     setErrors({});
     setGlobalError("");
     setIsModalOpen(true);
@@ -455,7 +343,7 @@ export default function AdminSkillsPage() {
         : `${apiBase}/skills`;
 
       const response = await fetch(url, {
-        method: "POST", // In api.php, updates are Route::post('/skills/{id}')
+        method: "POST",
         headers: {
           Authorization: `Bearer ${activeToken}`,
           Accept: "application/json",
@@ -524,249 +412,405 @@ export default function AdminSkillsPage() {
   };
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 p-6 shadow-theme-xs">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div className="space-y-6">
+      {/* Header Studio Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800/80 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-full bg-gradient-to-l from-cyan-500/10 to-transparent pointer-events-none" />
+
         <div>
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white/90">
-            Skills Management
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Group your skills and technologies (e.g. Backend, Frontend) and list their items.
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="px-2.5 py-0.5 text-[11px] font-semibold tracking-wider uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-full">
+              Expertise & Tech Stack
+            </span>
+            <span className="text-xs text-slate-400">Competency Manager</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+            Skills <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Studio</span>
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Group your core proficiencies (Backend, Frontend, DevOps) and list individual tools.
           </p>
         </div>
-        <Button size="sm" onClick={openCreateModal} className="flex items-center gap-2">
-          <span>Add Skill Group</span>
-        </Button>
+
+        <button
+          onClick={openCreateModal}
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all duration-200 shadow-lg shadow-cyan-500/20 hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Add Skill Group
+        </button>
       </div>
 
+      {/* Metrics Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-medium">Skill Groups</span>
+            <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-xs">
+              📂
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-white mt-2">{stats.totalGroups}</p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-medium">Total Technologies</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs">
+              ⚡
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-emerald-400 mt-2">{stats.totalSkillsCount}</p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md col-span-2 sm:col-span-1">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-medium">Stack Health</span>
+            <div className="w-7 h-7 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 text-xs">
+              🎯
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-purple-400 mt-2">Active</p>
+        </div>
+      </div>
+
+      {/* Global Error Banner */}
       {globalError && (
-        <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm dark:bg-red-950/30 dark:text-red-400 dark:border-red-900">
-          {globalError}
+        <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs flex items-center gap-2">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{globalError}</span>
         </div>
       )}
 
-      {/* Skills Table */}
-      <div className="overflow-x-auto w-full">
-        <Table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-          <TableHeader className="bg-gray-50 dark:bg-gray-800/40">
-            <TableRow>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Group Title
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Icon Code
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Skills / Technologies
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Actions
-              </TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800 bg-transparent">
-            {isLoading ? (
+      {/* Search Toolbar */}
+      <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-xl">
+        <div className="relative flex-1 max-w-md">
+          <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search skill groups or specific tools (e.g. Docker, PHP)..."
+            className="w-full h-9.5 pl-9 pr-8 text-xs rounded-lg bg-slate-950 border border-slate-800 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        <span className="text-xs text-slate-500 font-mono hidden sm:inline">
+          {filteredSkillGroups.length} groups found
+        </span>
+      </div>
+
+      {/* Skills Table Card */}
+      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-2xl">
+        <div className="overflow-x-auto w-full">
+          <Table className="min-w-full divide-y divide-slate-800/60">
+            <TableHeader className="bg-slate-950/60">
               <TableRow>
-                <TableCell className="px-4 py-8 text-center text-gray-500 dark:text-gray-400" colSpan={4}>
-                  <div className="flex justify-center items-center gap-2">
-                    <span className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin"></span>
-                    <span>Loading skill groups...</span>
-                  </div>
+                <TableCell isHeader className="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Group & Icon
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Icon Identifier
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Technologies / Skills
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Actions
                 </TableCell>
               </TableRow>
-            ) : skillGroups.length === 0 ? (
-              <TableRow>
-                <TableCell className="px-4 py-8 text-center text-gray-500 dark:text-gray-400" colSpan={4}>
-                  No skill groups found. Click &quot;Add Skill Group&quot; to create one.
-                </TableCell>
-              </TableRow>
-            ) : (
-              skillGroups.map((group) => (
-                <TableRow key={group.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/10">
-                  <TableCell className="px-4 py-3 text-sm font-semibold text-gray-800 dark:text-white/90">
-                    {group.title}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    {group.icon ? (
-                      <code className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-mono text-xs text-brand-500">
-                        {group.icon}
-                      </code>
-                    ) : (
-                      <span className="text-gray-300 dark:text-gray-600">N/A</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    <div className="flex flex-wrap gap-1 max-w-[400px]">
-                      {group.skills &&
-                        group.skills.map((skill, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-block px-2.5 py-0.5 text-xs rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-transparent dark:border-gray-700"
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-right text-sm font-medium">
-                    <div className="flex justify-end gap-3">
-                      <button
-                        onClick={() => openEditModal(group)}
-                        className="text-primary hover:text-primary/80 transition-colors cursor-pointer"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(group.id)}
-                        className="text-red-500 hover:text-red-400 transition-colors cursor-pointer"
-                      >
-                        Delete
-                      </button>
+            </TableHeader>
+            <TableBody className="divide-y divide-slate-800/40 bg-transparent">
+              {isLoading ? (
+                <TableRow>
+                  <TableCell className="px-5 py-12 text-center text-slate-400" colSpan={4}>
+                    <div className="flex justify-center items-center gap-2">
+                      <span className="w-5 h-5 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin"></span>
+                      <span className="text-sm">Loading skills studio...</span>
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : filteredSkillGroups.length === 0 ? (
+                <TableRow>
+                  <TableCell className="px-5 py-12 text-center text-slate-400" colSpan={4}>
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <span className="text-3xl">🧩</span>
+                      <p className="text-sm font-medium text-slate-300">No skill groups found</p>
+                      <p className="text-xs text-slate-500">Click &quot;Add Skill Group&quot; to configure your stack.</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredSkillGroups.map((group) => {
+                  const IconComp = group.icon ? getSkillIcon(group.icon) : null;
+                  return (
+                    <TableRow key={group.id} className="hover:bg-slate-800/30 transition-colors">
+                      {/* Title & Icon Preview */}
+                      <TableCell className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-base shrink-0">
+                            {IconComp ? <IconComp size={18} /> : <span>⚡</span>}
+                          </div>
+                          <div>
+                            <span className="font-semibold text-white text-sm block">
+                              {group.title}
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              {group.skills?.length || 0} skills registered
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+
+                      {/* Icon code */}
+                      <TableCell className="px-5 py-3.5">
+                        {group.icon ? (
+                          <span className="inline-block px-2.5 py-1 rounded-md bg-slate-950 border border-slate-800 font-mono text-xs text-cyan-300">
+                            {group.icon}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-slate-600 font-mono">None</span>
+                        )}
+                      </TableCell>
+
+                      {/* Skills tags */}
+                      <TableCell className="px-5 py-3.5 max-w-[360px]">
+                        <div className="flex flex-wrap gap-1.5">
+                          {group.skills && group.skills.length > 0 ? (
+                            group.skills.map((skill, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-block px-2.5 py-0.5 text-xs rounded-md bg-slate-800/90 text-slate-200 border border-slate-700/60 font-mono hover:border-cyan-500/40 transition-colors"
+                              >
+                                {skill}
+                              </span>
+                            ))
+                          ) : (
+                            <span className="text-xs text-slate-600 italic">No skills listed</span>
+                          )}
+                        </div>
+                      </TableCell>
+
+                      {/* Actions */}
+                      <TableCell className="px-5 py-3.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => openEditModal(group)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/20 transition-all"
+                            title="Edit Skill Group"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDelete(group.id)}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all"
+                            title="Delete Skill Group"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Pagination Bar */}
+        {meta && meta.last_page > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800/80 bg-slate-950/40">
+            <span className="text-xs text-slate-400">
+              Page <span className="font-semibold text-white">{meta.current_page}</span> of{" "}
+              <span className="font-semibold text-white">{meta.last_page}</span> ({meta.total} groups)
+            </span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={currentPage === 1 || isLoading}
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={currentPage === meta.last_page || isLoading}
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, meta.last_page))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Pagination */}
-      {meta && meta.last_page > 1 && (
-        <div className="flex justify-between items-center mt-6">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            Showing Page {meta.current_page} of {meta.last_page} ({meta.total} groups total)
-          </span>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={currentPage === 1 || isLoading}
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            >
-              Previous
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={currentPage === meta.last_page || isLoading}
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, meta.last_page))}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Create/Edit Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} className="max-w-2xl">
-        <div className="p-6">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-white/90 mb-4">
-            {isEditing ? "Edit Skill Group" : "Add New Skill Group"}
-          </h3>
-
-          {globalError && (
-            <div className="mb-4 p-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs dark:bg-red-950/30 dark:text-red-400 dark:border-red-900">
-              {globalError}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Group Title */}
-            <div>
-              <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-                Group Title <span className="text-red-500">*</span>
-              </Label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => handleFieldChange("title", e.target.value, setTitle)}
-                className={`w-full h-11 px-4 py-2.5 rounded-lg border text-sm dark:bg-gray-900 dark:text-white outline-none focus:ring-3 focus:ring-brand-500/10 ${
-                  errors.title
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-gray-300 dark:border-gray-700 focus:border-brand-500"
-                }`}
-                placeholder="E.g. Backend Development"
-              />
-              {errors.title && (
-                <p className="mt-1 text-xs text-red-500">{errors.title[0]}</p>
-              )}
-            </div>
-
-            {/* Icon Picker */}
-            <div>
-              <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-                Icon (Optional)
-              </Label>
-              <IconPicker
-                value={icon}
-                onChange={(val) => handleFieldChange("icon", val, setIcon)}
-              />
-              {errors.icon && (
-                <p className="mt-1 text-xs text-red-500">{errors.icon[0]}</p>
-              )}
-            </div>
-
-            {/* Dynamic Skills Array Builder */}
-            <div>
-              <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-                Skills / Technologies <span className="text-red-500">*</span>
-              </Label>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {skills.map((skill, index) => (
-                  <div key={index} className="flex gap-2 items-center">
-                    <input
-                      type="text"
-                      required
-                      value={skill}
-                      onChange={(e) => handleSkillChange(index, e.target.value)}
-                      className={`w-full h-10 px-3 rounded-lg border text-sm dark:bg-gray-900 dark:text-white outline-none focus:border-brand-500 ${
-                        errors[`skills.${index}`] ? "border-red-500" : "border-gray-300 dark:border-gray-700"
-                      }`}
-                      placeholder={`Skill Item #${index + 1} (e.g. Node.js)`}
-                    />
-                    {skills.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeSkillField(index)}
-                        className="text-red-500 hover:text-red-400 p-1 cursor-pointer transition-colors"
-                      >
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                ))}
+      {/* Modern Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        showCloseButton={false}
+        className="max-w-2xl border border-slate-800 bg-slate-950/95 backdrop-blur-2xl shadow-2xl rounded-2xl overflow-hidden"
+      >
+        <div className="flex flex-col max-h-[90vh]">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-900/50">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-sm">
+                {isEditing ? "✏️" : "🧩"}
               </div>
-              <button
-                type="button"
-                onClick={addSkillField}
-                className="mt-2 text-xs font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-1 cursor-pointer"
-              >
-                <span>+ Add Skill Item</span>
-              </button>
-              {errors.skills && (
-                <p className="mt-1 text-xs text-red-500">{errors.skills[0]}</p>
-              )}
+              <div>
+                <h3 className="text-base font-bold text-white tracking-tight">
+                  {isEditing ? "Edit Skill Group" : "Create New Skill Group"}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Organize and group technologies with a dedicated icon
+                </p>
+              </div>
             </div>
 
-            {/* Submit Actions */}
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsModalOpen(false)}
-                disabled={formLoading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={formLoading}>
-                {formLoading ? "Saving..." : "Save Skill Group"}
-              </Button>
-            </div>
-          </form>
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors text-sm"
+              title="Close modal"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
+            {globalError && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs">
+                {globalError}
+              </div>
+            )}
+
+            <form id="skill-group-form" onSubmit={handleSubmit} className="space-y-5">
+              {/* Group Title */}
+              <div>
+                <Label className="mb-1.5 text-xs font-semibold text-slate-300 block">
+                  Group Title <span className="text-cyan-400">*</span>
+                </Label>
+                <input
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => handleFieldChange("title", e.target.value, setTitle)}
+                  className={`w-full h-11 px-4 text-sm rounded-xl bg-slate-900/80 border text-white placeholder-slate-500 outline-none transition-all ${
+                    errors.title
+                      ? "border-rose-500 focus:border-rose-500"
+                      : "border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30"
+                  }`}
+                  placeholder="e.g. Backend Architecture & Microservices"
+                />
+                {errors.title && <p className="mt-1 text-xs text-rose-400">{errors.title[0]}</p>}
+              </div>
+
+              {/* Icon Picker */}
+              <div>
+                <Label className="mb-1.5 text-xs font-semibold text-slate-300 block">
+                  Group Icon
+                </Label>
+                <IconPicker
+                  value={icon}
+                  onChange={(val) => handleFieldChange("icon", val, setIcon)}
+                />
+                {errors.icon && <p className="mt-1 text-xs text-rose-400">{errors.icon[0]}</p>}
+              </div>
+
+              {/* Dynamic Skills Items */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <Label className="text-xs font-semibold text-slate-300">
+                    Included Skills / Technologies <span className="text-cyan-400">*</span>
+                  </Label>
+                  <button
+                    type="button"
+                    onClick={addSkillField}
+                    className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors"
+                  >
+                    <span>+ Add Skill</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                  {skills.map((skill, index) => (
+                    <div key={index} className="flex gap-2 items-center">
+                      <div className="w-6 h-6 rounded-md bg-slate-800 text-slate-400 text-xs font-mono flex items-center justify-center shrink-0">
+                        {index + 1}
+                      </div>
+                      <input
+                        type="text"
+                        required
+                        value={skill}
+                        onChange={(e) => handleSkillChange(index, e.target.value)}
+                        className={`w-full h-10 px-3.5 text-xs rounded-xl bg-slate-900/80 border text-white placeholder-slate-500 outline-none transition-all font-mono ${
+                          errors[`skills.${index}`]
+                            ? "border-rose-500"
+                            : "border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30"
+                        }`}
+                        placeholder={`e.g. Node.js, GraphQL, Docker`}
+                      />
+                      {skills.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeSkillField(index)}
+                          className="w-8 h-8 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 flex items-center justify-center shrink-0 transition-colors"
+                          title="Remove item"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {errors.skills && <p className="mt-1 text-xs text-rose-400">{errors.skills[0]}</p>}
+              </div>
+            </form>
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-800/80 bg-slate-900/50">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              disabled={formLoading}
+              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="skill-group-form"
+              disabled={formLoading}
+              className="inline-flex items-center gap-2 px-5 py-2 text-xs font-semibold rounded-lg text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/20 disabled:opacity-50"
+            >
+              {formLoading && (
+                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              )}
+              <span>{isEditing ? "Save Skill Group" : "Create Group"}</span>
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

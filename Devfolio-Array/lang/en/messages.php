@@ -12,6 +12,7 @@ return [
 
     // Auth
     'registered_successfully' => 'User registered successfully.',
+    'registration_disabled' => 'Registration is disabled for security reasons.',
     'logged_in_successfully' => 'Logged in successfully.',
     'logged_out_successfully' => 'Logged out successfully.',
     'user_retrieved' => 'User details retrieved successfully.',
@@ -71,6 +72,7 @@ return [
     // Profile
     'profile_retrieved' => 'Profile retrieved successfully.',
     'profile_created' => 'Profile created successfully.',
+    'profile_saved' => 'Profile saved successfully.',
     'profile_updated' => 'Profile updated successfully.',
     'profile_deleted' => 'Profile deleted successfully.',
     'profile_not_found' => 'Profile not found.',

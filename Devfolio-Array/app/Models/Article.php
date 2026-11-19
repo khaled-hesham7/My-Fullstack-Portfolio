@@ -20,6 +20,7 @@ class Article extends Model
         'tags',
         'author_id',
         'is_featured',
+        'category',
     ];
 
     protected $casts = [
@@ -55,5 +56,14 @@ class Article extends Model
     public function getLikesCountAttribute()
     {
         return $this->likesRelation()->count();
+    }
+
+    // Local scope to filter by category (technical or personal)
+    public function scopeCategory($query, $category)
+    {
+        if ($category) {
+            return $query->where('category', $category);
+        }
+        return $query;
     }
 }

@@ -24,16 +24,15 @@ use App\Http\Controllers\CvController;
 
 Route::get('/portfolio-data', [AboutMeLandingPageController::class, 'index']);
 Route::get('/Home', [HomeController::class, 'index']);
-Route::post('/contact', [ContactController::class, 'store']);
+Route::get('/home', [HomeController::class, 'index']);
+Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:5,1');
 Route::get('/contact/settings', [ContactController::class, 'getSettings']);
 
 // CVs (Public View)
 Route::get('/cvs', [CvController::class, 'index']);
 
-
-
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:3,1');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 
 // Portfolio Sections (Read-Only)
 Route::get('/skills', [SkillGroupsController::class, 'index']);      // المهارات
@@ -43,19 +42,17 @@ Route::get('/education', [EducationController::class, 'index']);     // التع
 // Articles (Public View)
 Route::get('/articles', [ArticleController::class, 'index']);
 Route::get('/articles/{id}', [ArticleController::class, 'show']);
-Route::post('/articles/{id}/like', [ArticleController::class, 'toggleLike']);
-
-
+Route::post('/articles/{id}/like', [ArticleController::class, 'toggleLike'])->middleware('throttle:30,1');
 
 // Projects (Public View)
 Route::get('/projects', [ProjectController::class, 'index']);
 Route::get('/projects/{id}', [ProjectController::class, 'show']);
 
-
-// SocialLink
+// SocialLink (Standard REST & Legacy compatibility)
+Route::get('/social-links', [SocialLinkController::class, 'index']);
+Route::get('/social-links/platforms', [SocialLinkController::class, 'getPlatforms']);
 Route::get('/SocialLinkindex', [SocialLinkController::class, 'index']);
 Route::get('/SocialLink', [SocialLinkController::class, 'getPlatforms']);
-
 
 // profile
 Route::get('/profiles', [ProfileController::class, 'index']);
@@ -79,38 +76,41 @@ Route::middleware('auth:sanctum')->group(function () {
     // --- إدارة المهارات (Skills) ---
     Route::post('/skills', [SkillGroupsController::class, 'store']);
     Route::get('/skills/{id}', [SkillGroupsController::class, 'show']);
-    Route::post('/skills/{id}', [SkillGroupsController::class, 'update']);
+    Route::match(['POST', 'PUT'], '/skills/{id}', [SkillGroupsController::class, 'update']);
     Route::delete('/skills/{id}', [SkillGroupsController::class, 'destroy']);
     
     // --- إدارة الخبرات (Experiences) ---
     Route::post('/experiences', [ExperiencesController::class, 'store']);
     Route::get('/experiences/{id}', [ExperiencesController::class, 'show']);
-    Route::post('/experiences/{id}', [ExperiencesController::class, 'update']); // تعديل خبرة
+    Route::match(['POST', 'PUT'], '/experiences/{id}', [ExperiencesController::class, 'update']); // تعديل خبرة
     Route::delete('/experiences/{id}', [ExperiencesController::class, 'destroy']);
     
     // --- إدارة التعليم (Education) ---
     Route::post('/education', [EducationController::class, 'store']);
     Route::get('/education/{id}', [EducationController::class, 'show']);
-    Route::post('/education/{id}', [EducationController::class, 'update']); // تعديل تعليم
+    Route::match(['POST', 'PUT'], '/education/{id}', [EducationController::class, 'update']); // تعديل تعليم
     Route::delete('/education/{id}', [ EducationController::class, 'destroy']);
     
     // --- إدارة المقالات (Articles) ---
     Route::post('/articles', [ArticleController::class, 'store']);
     Route::post('/articles/{id}/translate', [ArticleController::class, 'translate']);
-    Route::post('/articles/{id}', [ArticleController::class, 'update']);
+    Route::match(['POST', 'PUT'], '/articles/{id}', [ArticleController::class, 'update']);
     Route::delete('/articles/{id}', [ArticleController::class, 'destroy']);
     Route::delete('/media/{idOrPath}', [ArticleController::class, 'deleteMedia'])->where('idOrPath', '.*');
     
     
     // --- إدارة المشاريع (projects) ---
     Route::post('/projects', [ProjectController::class, 'store']);
-    Route::post('/projects/{id}', [ProjectController::class, 'update']);
+    Route::match(['POST', 'PUT'], '/projects/{id}', [ProjectController::class, 'update']);
+    Route::match(['POST', 'PATCH'], '/projects/{id}/featured', [ProjectController::class, 'toggleFeatured']);
     Route::delete('/projects/{id}', [ProjectController::class, 'destroy']);
 
 
     // SocialLink
     Route::delete('/SocialLink/{id}', [SocialLinkController::class, 'destroy']);
     Route::post('/SocialLink', [SocialLinkController::class, 'store']);
+    Route::delete('/social-links/{id}', [SocialLinkController::class, 'destroy']);
+    Route::post('/social-links', [SocialLinkController::class, 'store']);
 
 
     // Profile

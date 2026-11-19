@@ -105,6 +105,7 @@ export default async function SingleBlogPage({ params }: any) {
     lang: "en",
     content: mapBackendBlocksToFrontend(blogPost.content),
     feature_video: blogPost.feature_video,
+    category: blogPost.category || "technical",
     stats: blogPost.stats,
     dateDiff: blogPost.date?.diff,
   };

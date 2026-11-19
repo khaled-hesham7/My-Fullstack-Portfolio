@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Modal } from "../../../components/ui/modal";
 import { Table, TableHeader, TableBody, TableRow, TableCell } from "../../../components/ui/table";
 import Button from "../../../components/ui/button/Button";
@@ -33,6 +33,10 @@ export default function AdminProjectsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
+
+  // Filters & Search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "featured" | "demo" | "github">("all");
 
   // Modal & Form State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -101,6 +105,33 @@ export default function AdminProjectsPage() {
     fetchProjects(currentPage);
   }, [currentPage]);
 
+  // Filtered list
+  const filteredProjects = useMemo(() => {
+    return projects.filter((project) => {
+      const matchesSearch =
+        searchQuery === "" ||
+        project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        project.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (project.tags && project.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())));
+
+      if (!matchesSearch) return false;
+
+      if (filterType === "featured") return project.is_featured;
+      if (filterType === "demo") return Boolean(project.demo_link);
+      if (filterType === "github") return Boolean(project.github_link);
+      return true;
+    });
+  }, [projects, searchQuery, filterType]);
+
+  // Metrics
+  const stats = useMemo(() => {
+    const total = meta?.total ?? projects.length;
+    const featured = projects.filter((p) => p.is_featured).length;
+    const withDemo = projects.filter((p) => Boolean(p.demo_link)).length;
+    const withGithub = projects.filter((p) => Boolean(p.github_link)).length;
+    return { total, featured, withDemo, withGithub };
+  }, [projects, meta]);
+
   const openCreateModal = () => {
     setIsEditing(false);
     setEditingId(null);
@@ -125,35 +156,15 @@ export default function AdminProjectsPage() {
     setTags(project.tags ? project.tags.join(", ") : "");
     setGithubLink(project.github_link || "");
     setDemoLink(project.demo_link || "");
-    setIsFeatured(project.is_featured || false);
+    setIsFeatured(Boolean(project.is_featured));
     setSelectedFile(null);
-    setPreviewUrl(project.image_url);
+    setPreviewUrl(project.image_url ? resolveImageUrl(project.image_url, "") : null);
     setErrors({});
     setGlobalError("");
     setIsModalOpen(true);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      // Clear specific error
-      if (errors.project_image) {
-        setErrors((prev) => {
-          const next = { ...prev };
-          delete next.project_image;
-          return next;
-        });
-      }
-    }
-  };
-
-  const handleFieldChange = (
-    field: string,
-    value: string,
-    setter: React.Dispatch<React.SetStateAction<string>>
-  ) => {
+  const handleFieldChange = (field: string, value: string, setter: (val: string) => void) => {
     setter(value);
     if (errors[field]) {
       setErrors((prev) => {
@@ -161,6 +172,22 @@ export default function AdminProjectsPage() {
         delete next[field];
         return next;
       });
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const tempUrl = URL.createObjectURL(file);
+      setPreviewUrl(tempUrl);
+      if (errors.project_image) {
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.project_image;
+          return next;
+        });
+      }
     }
   };
 
@@ -174,16 +201,19 @@ export default function AdminProjectsPage() {
       const formDataObj = new FormData();
       formDataObj.append("title", title);
       formDataObj.append("description", description);
-      formDataObj.append("github_link", githubLink);
-      formDataObj.append("demo_link", demoLink);
+      formDataObj.append("github_link", githubLink || "");
+      formDataObj.append("demo_link", demoLink || "");
       formDataObj.append("is_featured", isFeatured ? "1" : "0");
 
-      // Convert comma separated tags to array
+      if (isEditing) {
+        formDataObj.append("_method", "PUT");
+      }
+
       const tagsArray = tags
         .split(",")
         .map((t) => t.trim())
         .filter((t) => t.length > 0);
-      
+
       tagsArray.forEach((tag) => {
         formDataObj.append("tags[]", tag);
       });
@@ -200,7 +230,7 @@ export default function AdminProjectsPage() {
       const activeToken = token || localStorage.getItem("admin_token");
 
       const response = await fetch(url, {
-        method: "POST", // Laravel routing expects POST for updates too due to files handling
+        method: "POST",
         headers: {
           Authorization: `Bearer ${activeToken}`,
           Accept: "application/json",
@@ -250,345 +280,532 @@ export default function AdminProjectsPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to delete project.");
+        throw new Error(`Failed to delete. Server code: ${response.status}`);
       }
 
       const payload = await response.json();
       if (payload.success) {
-        // If current page projects count becomes 1 and we delete it, go to previous page
         if (projects.length === 1 && currentPage > 1) {
-          setCurrentPage(currentPage - 1);
+          setCurrentPage((prev) => prev - 1);
         } else {
           fetchProjects(currentPage);
         }
       }
     } catch (err: any) {
-      console.error("Delete error:", err);
-      alert(err.message || "Could not delete project.");
+      console.error("Delete project failed:", err);
+      setGlobalError(err.message || "Error occurred during deletion.");
+    }
+  };
+
+  const handleToggleFeatured = async (project: ProjectItem) => {
+    try {
+      const apiBase = getApiBaseUrl();
+      const activeToken = token || localStorage.getItem("admin_token");
+      const response = await fetch(`${apiBase}/projects/${project.id}/featured`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${activeToken}`,
+          Accept: "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update status. Server code: ${response.status}`);
+      }
+
+      const payload = await response.json();
+      if (payload.success) {
+        setProjects((prev) =>
+          prev.map((p) =>
+            p.id === project.id ? { ...p, is_featured: !p.is_featured } : p
+          )
+        );
+      }
+    } catch (err: any) {
+      console.error("Toggle featured failed:", err);
+      setGlobalError(err.message || "Failed to toggle featured status.");
     }
   };
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 p-6 shadow-theme-xs">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+    <div className="space-y-6">
+      {/* Header Studio Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800/80 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-full bg-gradient-to-l from-cyan-500/10 to-transparent pointer-events-none" />
+
         <div>
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white/90">
-            Projects Management
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Create, view, edit and delete your projects.
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="px-2.5 py-0.5 text-[11px] font-semibold tracking-wider uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-full">
+              Work & Portfolio
+            </span>
+            <span className="text-xs text-slate-400">Production Studio</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+            Projects <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Manager</span>
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Showcase your best engineering achievements, repositories, and live applications.
           </p>
         </div>
-        <Button size="sm" onClick={openCreateModal} className="flex items-center gap-2">
-          <span>Add Project</span>
-        </Button>
+
+        <button
+          onClick={openCreateModal}
+          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all duration-200 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 hover:scale-[1.02] active:scale-[0.98]"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Add New Project
+        </button>
       </div>
 
+      {/* Metrics Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-medium">Total Projects</span>
+            <div className="w-7 h-7 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-xs">
+              🚀
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-white mt-2">{stats.total}</p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-medium">Featured (Home)</span>
+            <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-xs">
+              ⭐
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-amber-400 mt-2">{stats.featured}</p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-medium">Live Demos</span>
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-xs">
+              🌐
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-emerald-400 mt-2">{stats.withDemo}</p>
+        </div>
+
+        <div className="p-4 rounded-xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-slate-400 font-medium">Git Repositories</span>
+            <div className="w-7 h-7 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 text-xs">
+              🐙
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-purple-400 mt-2">{stats.withGithub}</p>
+        </div>
+      </div>
+
+      {/* Global Error Banner */}
       {globalError && (
-        <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm">
-          {globalError}
+        <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs flex items-center gap-2">
+          <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{globalError}</span>
         </div>
       )}
 
-      {/* Projects Table */}
-      <div className="overflow-x-auto w-full">
-        <Table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-          <TableHeader className="bg-gray-50 dark:bg-gray-800/40">
-            <TableRow>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Preview
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Title
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Description
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Tags
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Links
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Featured
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Actions
-              </TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800 bg-transparent">
-            {isLoading ? (
+      {/* Search & Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 rounded-xl bg-slate-900/80 border border-slate-800/80 backdrop-blur-xl">
+        <div className="relative flex-1 max-w-md">
+          <svg className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search projects by title, stack, tags..."
+            className="w-full h-9.5 pl-9 pr-8 text-xs rounded-lg bg-slate-950 border border-slate-800 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          {(
+            [
+              { key: "all", label: "All" },
+              { key: "featured", label: "⭐ Featured" },
+              { key: "demo", label: "🌐 Live Demos" },
+              { key: "github", label: "🐙 GitHub" },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setFilterType(tab.key)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all shrink-0 ${filterType === tab.key
+                ? "bg-cyan-500 text-slate-950 font-semibold shadow-md shadow-cyan-500/20"
+                : "bg-slate-800/60 text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Projects Table Card */}
+      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-2xl">
+        <div className="overflow-x-auto w-full">
+          <Table className="min-w-full divide-y divide-slate-800/60">
+            <TableHeader className="bg-slate-950/60">
               <TableRow>
-                <TableCell className="px-4 py-8 text-center text-gray-500 dark:text-gray-400" colSpan={6}>
-                  <div className="flex justify-center items-center gap-2">
-                    <span className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin"></span>
-                    <span>Loading projects...</span>
-                  </div>
+                <TableCell isHeader className="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Project Preview
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Details
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Tech Stack
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Links
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Featured
+                </TableCell>
+                <TableCell isHeader className="px-5 py-3.5 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Actions
                 </TableCell>
               </TableRow>
-            ) : projects.length === 0 ? (
-              <TableRow>
-                <TableCell className="px-4 py-8 text-center text-gray-500 dark:text-gray-400" colSpan={6}>
-                  No projects found. Click &quot;Add Project&quot; to create one.
-                </TableCell>
-              </TableRow>
-            ) : (
-              projects.map((project) => (
-                <TableRow key={project.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/10">
-                  <TableCell className="px-4 py-3">
-                    <div className="relative w-16 h-10 rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800">
-                      {project.image_url ? (
-                        <Image
-                          src={resolveImageUrl(project.image_url, "")}
-                          alt={project.title}
-                          fill
-                          className="object-cover"
-                          sizes="64px"
-                        />
-                      ) : (
-                        <span className="flex items-center justify-center h-full text-[10px] text-gray-400">
-                          No Image
-                        </span>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm font-semibold text-gray-800 dark:text-white/90">
-                    {project.title}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 max-w-[200px] truncate">
-                    {project.description}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm">
-                    <div className="flex flex-wrap gap-1">
-                      {project.tags &&
-                        project.tags.map((tag, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-block px-2 py-0.5 text-[10px] rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-transparent dark:border-gray-700"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    <div className="flex flex-col gap-0.5 text-xs">
-                      {project.github_link && (
-                        <a
-                          href={project.github_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          GitHub
-                        </a>
-                      )}
-                      {project.demo_link && (
-                        <a
-                          href={project.demo_link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-cyan-400 hover:underline"
-                        >
-                          Demo
-                        </a>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    <span
-                      className={`inline-block px-2.5 py-1 text-xs font-medium rounded-full ${
-                        project.is_featured
-                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
-                      }`}
-                    >
-                      {project.is_featured ? "Featured" : "Regular"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-right text-sm font-medium">
-                    <div className="flex justify-end gap-3">
-                      <button
-                        onClick={() => openEditModal(project)}
-                        className="text-primary hover:text-primary/80 transition-colors cursor-pointer"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(project.id)}
-                        className="text-red-500 hover:text-red-400 transition-colors cursor-pointer"
-                      >
-                        Delete
-                      </button>
+            </TableHeader>
+            <TableBody className="divide-y divide-slate-800/40 bg-transparent">
+              {isLoading ? (
+                <TableRow>
+                  <TableCell className="px-5 py-12 text-center text-slate-400" colSpan={6}>
+                    <div className="flex justify-center items-center gap-2">
+                      <span className="w-5 h-5 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin"></span>
+                      <span className="text-sm">Loading projects studio...</span>
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : filteredProjects.length === 0 ? (
+                <TableRow>
+                  <TableCell className="px-5 py-12 text-center text-slate-400" colSpan={6}>
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <span className="text-3xl">📂</span>
+                      <p className="text-sm font-medium text-slate-300">No projects match the criteria</p>
+                      <p className="text-xs text-slate-500">Try adjusting filters or click &quot;Add New Project&quot; above.</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredProjects.map((project) => (
+                  <TableRow key={project.id} className="hover:bg-slate-800/30 transition-colors">
+                    {/* Thumbnail */}
+                    <TableCell className="px-5 py-3.5">
+                      <div className="relative w-20 h-12 rounded-lg overflow-hidden bg-slate-950 border border-slate-800 group">
+                        {project.image_url ? (
+                          <Image
+                            src={resolveImageUrl(project.image_url, "")}
+                            alt={project.title}
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform duration-300"
+                            sizes="80px"
+                          />
+                        ) : (
+                          <span className="flex items-center justify-center h-full text-[10px] text-slate-500 font-mono">
+                            No Cover
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    {/* Title & Description */}
+                    <TableCell className="px-5 py-3.5 max-w-[280px]">
+                      <div className="font-semibold text-white text-sm line-clamp-1">
+                        {project.title}
+                      </div>
+                      <p className="text-xs text-slate-400 line-clamp-2 mt-0.5 leading-relaxed">
+                        {project.description}
+                      </p>
+                    </TableCell>
+
+                    {/* Tags */}
+                    <TableCell className="px-5 py-3.5 max-w-[200px]">
+                      <div className="flex flex-wrap gap-1.5">
+                        {project.tags && project.tags.length > 0 ? (
+                          project.tags.map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-block px-2 py-0.5 text-[11px] rounded-md bg-slate-800/90 text-cyan-300 border border-slate-700/60 font-mono"
+                            >
+                              {tag}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-slate-600 italic">No tags</span>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    {/* Links */}
+                    <TableCell className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        {project.github_link ? (
+                          <a
+                            href={project.github_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 text-xs rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-300 hover:bg-purple-500/20 transition-colors flex items-center gap-1"
+                            title={project.github_link}
+                          >
+                            <span>🐙</span>
+                            <span>Repo</span>
+                          </a>
+                        ) : null}
+                        {project.demo_link ? (
+                          <a
+                            href={project.demo_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-2 py-1 text-xs rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20 transition-colors flex items-center gap-1"
+                            title={project.demo_link}
+                          >
+                            <span>🌐</span>
+                            <span>Live</span>
+                          </a>
+                        ) : null}
+                        {!project.github_link && !project.demo_link && (
+                          <span className="text-xs text-slate-600">—</span>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    {/* Featured status (Interactive 1-Click Toggle) */}
+                    <TableCell className="px-5 py-3.5">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFeatured(project)}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${project.is_featured
+                            ? "bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 shadow-sm shadow-amber-500/10"
+                            : "bg-slate-800/60 border border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-800"
+                          }`}
+                        title="Click to toggle featured on home page"
+                      >
+                        <span>{project.is_featured ? "⭐ Featured" : "Standard"}</span>
+                      </button>
+                    </TableCell>
+
+                    {/* Actions */}
+                    <TableCell className="px-5 py-3.5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openEditModal(project)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-cyan-500/10 border border-transparent hover:border-cyan-500/20 transition-all"
+                          title="Edit Project"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(project.id)}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-all"
+                          title="Delete Project"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Pagination Bar */}
+        {meta && meta.last_page > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800/80 bg-slate-950/40">
+            <span className="text-xs text-slate-400">
+              Page <span className="font-semibold text-white">{meta.current_page}</span> of{" "}
+              <span className="font-semibold text-white">{meta.last_page}</span> ({meta.total} items)
+            </span>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={currentPage === 1 || isLoading}
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={currentPage === meta.last_page || isLoading}
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, meta.last_page))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Pagination */}
-      {meta && meta.last_page > 1 && (
-        <div className="flex justify-between items-center mt-6">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            Showing Page {meta.current_page} of {meta.last_page} ({meta.total} Projects total)
-          </span>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={currentPage === 1 || isLoading}
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+      {/* Modern High-End Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        showCloseButton={false}
+        className="max-w-3xl border border-slate-800 bg-slate-950/95 backdrop-blur-2xl shadow-2xl rounded-2xl overflow-hidden"
+      >
+        <div className="flex flex-col max-h-[90vh]">
+          {/* Custom Header with Isolated Close Button */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-900/50">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 text-sm">
+                {isEditing ? "✏️" : "🚀"}
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white tracking-tight">
+                  {isEditing ? "Edit Project Details" : "Create New Project"}
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Fill in the project showcase specs and deployment links
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition-colors text-sm"
+              title="Close modal"
             >
-              Previous
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={currentPage === meta.last_page || isLoading}
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, meta.last_page))}
-            >
-              Next
-            </Button>
+              ✕
+            </button>
           </div>
-        </div>
-      )}
 
-      {/* Create/Edit Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} className="max-w-xl">
-        <div className="p-6">
-          <h3 className="text-lg font-bold text-gray-800 dark:text-white/90 mb-4">
-            {isEditing ? "Edit Project" : "Add New Project"}
-          </h3>
+          {/* Modal Body */}
+          <div className="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5">
+            {globalError && (
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs">
+                {globalError}
+              </div>
+            )}
 
-          {globalError && (
-            <div className="mb-4 p-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs">
-              {globalError}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Title */}
-            <div>
-              <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-                Project Title <span className="text-red-500">*</span>
-              </Label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={(e) => handleFieldChange("title", e.target.value, setTitle)}
-                className={`w-full h-11 px-4 py-2.5 rounded-lg border text-sm dark:bg-gray-900 dark:text-white outline-none focus:ring-3 focus:ring-brand-500/10 ${
-                  errors.title
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-gray-300 dark:border-gray-700 focus:border-brand-500"
-                }`}
-                placeholder="E.g. Digital Forge Portfolio"
-              />
-              {errors.title && (
-                <p className="mt-1 text-xs text-red-500">{errors.title[0]}</p>
-              )}
-            </div>
-
-            {/* Description */}
-            <div>
-              <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-                Description <span className="text-red-500">*</span>
-              </Label>
-              <textarea
-                required
-                rows={4}
-                value={description}
-                onChange={(e) => handleFieldChange("description", e.target.value, setDescription)}
-                className={`w-full px-4 py-2.5 rounded-lg border text-sm dark:bg-gray-900 dark:text-white outline-none focus:ring-3 focus:ring-brand-500/10 ${
-                  errors.description
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-gray-300 dark:border-gray-700 focus:border-brand-500"
-                }`}
-                placeholder="Describe your project, stack, achievements..."
-              />
-              {errors.description && (
-                <p className="mt-1 text-xs text-red-500">{errors.description[0]}</p>
-              )}
-            </div>
-
-            {/* Tags */}
-            <div>
-              <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-                Tags / Technologies <span className="text-red-500">*</span>
-              </Label>
-              <input
-                type="text"
-                required
-                value={tags}
-                onChange={(e) => handleFieldChange("tags", e.target.value, setTags)}
-                className={`w-full h-11 px-4 py-2.5 rounded-lg border text-sm dark:bg-gray-900 dark:text-white outline-none focus:ring-3 focus:ring-brand-500/10 ${
-                  errors.tags
-                    ? "border-red-500 focus:border-red-500"
-                    : "border-gray-300 dark:border-gray-700 focus:border-brand-500"
-                }`}
-                placeholder="Separate tags with commas, e.g. PHP, Laravel, Next.js"
-              />
-              {errors.tags && (
-                <p className="mt-1 text-xs text-red-500">{errors.tags[0]}</p>
-              )}
-            </div>
-
-            {/* Links Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* GitHub Link */}
+            <form id="project-form" onSubmit={handleSubmit} className="space-y-5">
+              {/* Project Title */}
               <div>
-                <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-                  GitHub Repository Link
+                <Label className="mb-1.5 text-xs font-semibold text-slate-300 block">
+                  Project Title <span className="text-cyan-400">*</span>
                 </Label>
                 <input
-                  type="url"
-                  value={githubLink}
-                  onChange={(e) => handleFieldChange("github_link", e.target.value, setGithubLink)}
-                  className={`w-full h-11 px-4 py-2.5 rounded-lg border text-sm dark:bg-gray-900 dark:text-white outline-none focus:ring-3 focus:ring-brand-500/10 ${
-                    errors.github_link
-                      ? "border-red-500 focus:border-red-500"
-                      : "border-gray-300 dark:border-gray-700 focus:border-brand-500"
-                  }`}
-                  placeholder="https://github.com/..."
+                  type="text"
+                  required
+                  value={title}
+                  onChange={(e) => handleFieldChange("title", e.target.value, setTitle)}
+                  className={`w-full h-11 px-4 text-sm rounded-xl bg-slate-900/80 border text-white placeholder-slate-500 outline-none transition-all ${errors.title
+                    ? "border-rose-500 focus:border-rose-500"
+                    : "border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30"
+                    }`}
+                  placeholder="e.g. Next-Gen Cloud Orchestrator"
                 />
-                {errors.github_link && (
-                  <p className="mt-1 text-xs text-red-500">{errors.github_link[0]}</p>
-                )}
+                {errors.title && <p className="mt-1 text-xs text-rose-400">{errors.title[0]}</p>}
               </div>
 
-              {/* Demo Link */}
+              {/* Description */}
               <div>
-                <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-                  Live Demo Link
+                <Label className="mb-1.5 text-xs font-semibold text-slate-300 block">
+                  Description / Architecture Highlights <span className="text-cyan-400">*</span>
+                </Label>
+                <textarea
+                  required
+                  rows={4}
+                  value={description}
+                  onChange={(e) => handleFieldChange("description", e.target.value, setDescription)}
+                  className={`w-full px-4 py-3 text-sm rounded-xl bg-slate-900/80 border text-white placeholder-slate-500 outline-none transition-all leading-relaxed ${errors.description
+                    ? "border-rose-500 focus:border-rose-500"
+                    : "border-slate-800 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30"
+                    }`}
+                  placeholder="Summarize the core technical value proposition, architectural highlights, stack used..."
+                />
+                {errors.description && <p className="mt-1 text-xs text-rose-400">{errors.description[0]}</p>}
+              </div>
+
+              {/* Tags / Stack */}
+              <div>
+                <Label className="mb-1.5 text-xs font-semibold text-slate-300 block">
+                  Tech Stack & Tags <span className="text-slate-500">(comma separated)</span>
                 </Label>
                 <input
-                  type="url"
-                  value={demoLink}
-                  onChange={(e) => handleFieldChange("demo_link", e.target.value, setDemoLink)}
-                  className={`w-full h-11 px-4 py-2.5 rounded-lg border text-sm dark:bg-gray-900 dark:text-white outline-none focus:ring-3 focus:ring-brand-500/10 ${
-                    errors.demo_link
-                      ? "border-red-500 focus:border-red-500"
-                      : "border-gray-300 dark:border-gray-700 focus:border-brand-500"
-                  }`}
-                  placeholder="https://yourdomain.com"
+                  type="text"
+                  value={tags}
+                  onChange={(e) => handleFieldChange("tags", e.target.value, setTags)}
+                  className="w-full h-11 px-4 text-sm rounded-xl bg-slate-900/80 border border-slate-800 text-white placeholder-slate-500 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-all font-mono"
+                  placeholder="React, Next.js, TypeScript, Tailwind, Docker, PostgreSQL"
                 />
-                {errors.demo_link && (
-                  <p className="mt-1 text-xs text-red-500">{errors.demo_link[0]}</p>
+                {tags && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {tags
+                      .split(",")
+                      .map((t) => t.trim())
+                      .filter(Boolean)
+                      .map((tag, idx) => (
+                        <span key={idx} className="px-2 py-0.5 text-[11px] rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">
+                          {tag}
+                        </span>
+                      ))}
+                  </div>
                 )}
+                {errors.tags && <p className="mt-1 text-xs text-rose-400">{errors.tags[0]}</p>}
               </div>
-            </div>
 
-            {/* Project Image Upload */}
-            <div>
-              <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-                Project Image {!isEditing && <span className="text-red-500">*</span>}
-              </Label>
-              <div className="flex gap-4 items-center">
+              {/* Links Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="mb-1.5 text-xs font-semibold text-slate-300 block">
+                    🐙 GitHub Repository URL
+                  </Label>
+                  <input
+                    type="url"
+                    value={githubLink}
+                    onChange={(e) => handleFieldChange("github_link", e.target.value, setGithubLink)}
+                    className="w-full h-11 px-4 text-sm rounded-xl bg-slate-900/80 border border-slate-800 text-white placeholder-slate-500 outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500/30 transition-all"
+                    placeholder="https://github.com/username/project"
+                  />
+                  {errors.github_link && <p className="mt-1 text-xs text-rose-400">{errors.github_link[0]}</p>}
+                </div>
+
+                <div>
+                  <Label className="mb-1.5 text-xs font-semibold text-slate-300 block">
+                    🌐 Live Demo URL
+                  </Label>
+                  <input
+                    type="url"
+                    value={demoLink}
+                    onChange={(e) => handleFieldChange("demo_link", e.target.value, setDemoLink)}
+                    className="w-full h-11 px-4 text-sm rounded-xl bg-slate-900/80 border border-slate-800 text-white placeholder-slate-500 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all"
+                    placeholder="https://demo.example.com"
+                  />
+                  {errors.demo_link && <p className="mt-1 text-xs text-rose-400">{errors.demo_link[0]}</p>}
+                </div>
+              </div>
+
+              {/* Cover Image Studio */}
+              <div>
+                <Label className="mb-1.5 text-xs font-semibold text-slate-300 block">
+                  Project Cover Image {!isEditing && <span className="text-cyan-400">*</span>}
+                </Label>
+
                 <input
                   type="file"
                   ref={fileInputRef}
@@ -596,78 +813,105 @@ export default function AdminProjectsPage() {
                   accept="image/*"
                   className="hidden"
                 />
-                <button
-                  type="button"
+
+                <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-white text-xs font-semibold rounded-lg border border-gray-300 dark:border-gray-700 transition-colors"
+                  className="border-2 border-dashed border-slate-800 hover:border-cyan-500/50 rounded-xl p-5 text-center cursor-pointer bg-slate-900/40 hover:bg-slate-900/70 transition-all group"
                 >
-                  Choose File
-                </button>
-                {selectedFile && (
-                  <span className="text-xs text-gray-500 truncate max-w-[200px]">
-                    {selectedFile.name}
-                  </span>
-                )}
-              </div>
-              {errors.project_image && (
-                <p className="mt-1 text-xs text-red-500">{errors.project_image[0]}</p>
-              )}
-
-              {/* Preview */}
-              {previewUrl && (
-                <div className="mt-3 relative w-32 h-20 rounded-lg overflow-hidden border border-gray-200 bg-gray-50 dark:border-gray-800">
-                  <Image
-                    src={resolveImageUrl(previewUrl, "")}
-                    alt="Upload Preview"
-                    fill
-                    className="object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedFile(null);
-                      setPreviewUrl(null);
-                      if (fileInputRef.current) fileInputRef.current.value = "";
-                    }}
-                    className="absolute top-1 right-1 p-1 bg-black/60 rounded-full text-white hover:bg-black transition-colors"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
-                  </button>
+                  {previewUrl ? (
+                    <div className="relative w-full h-44 rounded-lg overflow-hidden border border-slate-700">
+                      <Image
+                        src={resolveImageUrl(previewUrl, "")}
+                        alt="Project Preview"
+                        fill
+                        className="object-cover"
+                      />
+                      <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                        <span className="px-3 py-1.5 rounded-lg bg-cyan-500 text-slate-950 text-xs font-semibold shadow-lg">
+                          Change Cover
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFile(null);
+                            setPreviewUrl(null);
+                            if (fileInputRef.current) fileInputRef.current.value = "";
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-rose-500 text-white text-xs font-semibold shadow-lg"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-4">
+                      <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center mx-auto mb-2 text-xl group-hover:scale-110 transition-transform">
+                        🖼️
+                      </div>
+                      <p className="text-sm font-semibold text-slate-200">
+                        Click to upload project cover image
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        PNG, JPG, WEBP recommended (16:9 ratio)
+                      </p>
+                    </div>
+                  )}
                 </div>
+                {errors.project_image && <p className="mt-1 text-xs text-rose-400">{errors.project_image[0]}</p>}
+              </div>
+
+              {/* Featured Switch Card */}
+              <div className="flex items-center justify-between p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-sm">
+                    ⭐
+                  </div>
+                  <div>
+                    <span className="text-sm font-semibold text-white block">
+                      Feature on Homepage
+                    </span>
+                    <span className="text-xs text-slate-400">
+                      Pin this project in the top featured portfolio showcase
+                    </span>
+                  </div>
+                </div>
+
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isFeatured}
+                    onChange={(e) => setIsFeatured(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                </label>
+              </div>
+            </form>
+          </div>
+
+          {/* Sticky Modal Footer */}
+          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-800/80 bg-slate-900/50">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              disabled={formLoading}
+              className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form="project-form"
+              disabled={formLoading}
+              className="inline-flex items-center gap-2 px-5 py-2 text-xs font-semibold rounded-lg text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all shadow-lg shadow-cyan-500/20 disabled:opacity-50"
+            >
+              {formLoading && (
+                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               )}
-            </div>
-
-            {/* Featured Toggle */}
-            <div className="flex items-center gap-2 mt-4 py-2">
-              <input
-                type="checkbox"
-                id="is_featured"
-                checked={isFeatured}
-                onChange={(e) => setIsFeatured(e.target.checked)}
-                className="w-4 h-4 text-brand-500 border-gray-300 rounded focus:ring-brand-500"
-              />
-              <Label htmlFor="is_featured" className="text-sm font-semibold text-gray-700 dark:text-gray-300 select-none cursor-pointer">
-                Show on Homepage (Featured)
-              </Label>
-            </div>
-
-            {/* Submit Actions */}
-            <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-100 dark:border-gray-800">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsModalOpen(false)}
-                disabled={formLoading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={formLoading}>
-                {formLoading ? "Saving..." : "Save Project"}
-              </Button>
-            </div>
-          </form>
+              <span>{isEditing ? "Save Project Changes" : "Publish Project"}</span>
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

@@ -1,7 +1,9 @@
 // app/about/AboutClient.tsx
 "use client";
 
-import * as Icons from "react-icons/fa";
+import { useState, useMemo } from "react";
+import { FaFilePdf, FaCode, FaDownload } from "react-icons/fa";
+import { getSkillIcon } from "@/lib/skillIcons";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import {
@@ -23,6 +25,7 @@ interface SkillGroup {
 
 interface Experience {
   id: number;
+  type?: string | null;
   job_title: string;
   company: string;
   location: string;
@@ -82,15 +85,28 @@ const cvColorThemes = [
 ];
 
 const IconComponent = (iconName: string) => {
-  const Icon = (Icons as Record<string, React.ComponentType<{ className?: string }>>)[iconName];
-  if (!Icon) {
-    return <Icons.FaCode className="h-8 w-8 text-primary mb-4" />;
-  }
+  const Icon = getSkillIcon(iconName);
   return <Icon className="h-8 w-8 text-primary mb-4" />;
 };
 
 export default function AboutClient({ data }: { data: AboutData | null }) {
   const resolvedData = data || fallbackData;
+  const [expFilter, setExpFilter] = useState<"all" | "job" | "internship">("all");
+
+  const hasInternships = useMemo(() => {
+    return resolvedData.experience?.some((e) => (e.type || "").toLowerCase() === "internship");
+  }, [resolvedData.experience]);
+
+  const filteredExperiences = useMemo(() => {
+    if (!resolvedData.experience) return [];
+    if (expFilter === "job") {
+      return resolvedData.experience.filter((e) => (e.type || "Job").toLowerCase() !== "internship");
+    }
+    if (expFilter === "internship") {
+      return resolvedData.experience.filter((e) => (e.type || "").toLowerCase() === "internship");
+    }
+    return resolvedData.experience;
+  }, [resolvedData.experience, expFilter]);
 
   return (
     <div className="container max-w-7xl mx-auto py-12 px-4">
@@ -106,7 +122,7 @@ export default function AboutClient({ data }: { data: AboutData | null }) {
         <motion.section className="mb-16 flex flex-col items-center gap-6" {...fadeInUp}>
           {resolvedData.about.image_url && (
             <div className="relative rounded-full w-36 h-36 p-[2px] overflow-hidden flex items-center justify-center shadow-[0_0_20px_rgba(78,128,247,0.4)] bg-transparent">
-              <div 
+              <div
                 className="absolute w-[200%] h-[200%] top-[-50%] left-[-50%] bg-gradient-to-r from-primary via-blue-500 to-transparent animate-spin"
                 style={{ animationDuration: "4s" }}
               />
@@ -129,76 +145,149 @@ export default function AboutClient({ data }: { data: AboutData | null }) {
             , {resolvedData.about.description}
           </p>
 
-          {/* Dynamic CV Downloads Grid */}
+          {/* Dynamic CV Downloads Showcase */}
           {((resolvedData.cvs && resolvedData.cvs.length > 0) || resolvedData.about) && (
-            <div className="flex flex-wrap justify-center gap-3 mt-6">
-              {resolvedData.cvs && resolvedData.cvs.length > 0 ? (
-                resolvedData.cvs.map((cvItem, index) => {
-                  const theme = cvColorThemes[index % cvColorThemes.length];
-                  return (
-                    <a
-                      key={cvItem.id}
-                      href={resolveImageUrl(cvItem.file_url)}
-                      target="_blank"
-                      download
-                      rel="noopener noreferrer"
-                      className={`group inline-flex items-center gap-2.5 px-4 py-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 ${theme.border} text-slate-300 hover:text-white transition-all duration-300 text-xs font-medium cursor-pointer shadow-sm backdrop-blur-md`}
-                    >
-                      <span className={`p-1 rounded ${theme.bg} ${theme.text} ${theme.hoverBg} transition-colors`}>
-                        <Icons.FaFilePdf className="h-3.5 w-3.5" />
-                      </span>
-                      <span>{cvItem.title}</span>
-                    </a>
-                  );
-                })
-              ) : (
-                <>
-                  {resolvedData.about?.general_cv_url && resolvedData.about.general_cv_url !== "" && (
-                    <a
-                      href={resolveImageUrl(resolvedData.about.general_cv_url)}
-                      target="_blank"
-                      download
-                      rel="noopener noreferrer"
-                      className="group inline-flex items-center gap-2.5 px-4 py-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 hover:border-primary/50 text-slate-300 hover:text-white transition-all duration-300 text-xs font-medium cursor-pointer shadow-sm backdrop-blur-md"
-                    >
-                      <span className="p-1 rounded bg-red-500/10 text-red-400 group-hover:bg-red-500/20 transition-colors">
-                        <Icons.FaFilePdf className="h-3.5 w-3.5" />
-                      </span>
-                      <span>General CV</span>
-                    </a>
-                  )}
+            <div className="mt-10 pt-8 border-t border-slate-800/60 max-w-4xl mx-auto w-full">
+              {/* Header Label */}
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <span className="h-px w-10 sm:w-16 bg-gradient-to-r from-transparent to-cyan-500/40" />
+                <span className="text-[11px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                  <FaFilePdf className="text-cyan-400 text-xs" />
+                  Curriculum Vitae / Official Resumes
+                </span>
+                <span className="h-px w-10 sm:w-16 bg-gradient-to-l from-transparent to-cyan-500/40" />
+              </div>
 
-                  {resolvedData.about?.backend_cv_url && resolvedData.about.backend_cv_url !== "" && (
-                    <a
-                      href={resolveImageUrl(resolvedData.about.backend_cv_url)}
-                      target="_blank"
-                      download
-                      rel="noopener noreferrer"
-                      className="group inline-flex items-center gap-2.5 px-4 py-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 hover:border-emerald-500/50 text-slate-300 hover:text-white transition-all duration-300 text-xs font-medium cursor-pointer shadow-sm backdrop-blur-md"
-                    >
-                      <span className="p-1 rounded bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
-                        <Icons.FaFilePdf className="h-3.5 w-3.5" />
-                      </span>
-                      <span>Backend Developer CV</span>
-                    </a>
-                  )}
+              {/* Cards Container */}
+              <div className="flex flex-wrap items-center justify-center gap-4">
+                {resolvedData.cvs && resolvedData.cvs.length > 0 ? (
+                  resolvedData.cvs.map((cvItem, index) => {
+                    const theme = cvColorThemes[index % cvColorThemes.length];
+                    return (
+                      <a
+                        key={cvItem.id}
+                        href={resolveImageUrl(cvItem.file_url)}
+                        target="_blank"
+                        download
+                        rel="noopener noreferrer"
+                        className="group relative flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-slate-800/80 hover:border-cyan-500/50 shadow-lg hover:shadow-cyan-500/10 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 min-w-[260px] max-w-sm flex-1"
+                      >
+                        {/* Hover glow sheen */}
+                        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-cyan-500/5 via-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-                  {resolvedData.about?.qa_cv_url && resolvedData.about.qa_cv_url !== "" && (
-                    <a
-                      href={resolveImageUrl(resolvedData.about.qa_cv_url)}
-                      target="_blank"
-                      download
-                      rel="noopener noreferrer"
-                      className="group inline-flex items-center gap-2.5 px-4 py-2 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 hover:border-cyan-500/50 text-slate-300 hover:text-white transition-all duration-300 text-xs font-medium cursor-pointer shadow-sm backdrop-blur-md"
-                    >
-                      <span className="p-1 rounded bg-cyan-500/10 text-cyan-400 group-hover:bg-cyan-500/20 transition-colors">
-                        <Icons.FaFilePdf className="h-3.5 w-3.5" />
-                      </span>
-                      <span>QA Engineer CV</span>
-                    </a>
-                  )}
-                </>
-              )}
+                        <div className="flex items-center gap-3.5 relative z-10 min-w-0">
+                          {/* PDF Icon Badge */}
+                          <div className={`w-11 h-11 rounded-xl ${theme.bg} ${theme.text} border border-white/10 flex items-center justify-center text-lg shrink-0 group-hover:scale-105 transition-all shadow-inner`}>
+                            <FaFilePdf />
+                          </div>
+
+                          {/* Title & Info */}
+                          <div className="text-left min-w-0">
+                            <h4 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
+                              {cvItem.title}
+                            </h4>
+                            <p className="text-[11px] font-medium text-slate-400 mt-0.5 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              <span>Verified PDF</span>
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Download Icon */}
+                        <div className="w-9 h-9 rounded-xl bg-slate-800/80 group-hover:bg-cyan-500 text-slate-400 group-hover:text-slate-950 flex items-center justify-center text-xs transition-all duration-300 group-hover:translate-y-0.5 shrink-0 ml-3 shadow-md relative z-10">
+                          <FaDownload />
+                        </div>
+                      </a>
+                    );
+                  })
+                ) : (
+                  <>
+                    {resolvedData.about?.general_cv_url && resolvedData.about.general_cv_url !== "" && (
+                      <a
+                        href={resolveImageUrl(resolvedData.about.general_cv_url)}
+                        target="_blank"
+                        download
+                        rel="noopener noreferrer"
+                        className="group relative flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-slate-800/80 hover:border-red-500/50 shadow-lg hover:shadow-red-500/10 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 min-w-[260px] max-w-sm flex-1"
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="w-11 h-11 rounded-xl bg-red-500/10 text-red-400 border border-red-500/20 flex items-center justify-center text-lg shrink-0 group-hover:scale-105 transition-all">
+                            <FaFilePdf />
+                          </div>
+                          <div className="text-left min-w-0">
+                            <h4 className="text-sm font-bold text-white group-hover:text-red-300 transition-colors truncate">
+                              General CV
+                            </h4>
+                            <p className="text-[11px] font-medium text-slate-400 mt-0.5 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              <span>Fullstack Profile</span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="w-9 h-9 rounded-xl bg-slate-800/80 group-hover:bg-red-500 text-slate-400 group-hover:text-white flex items-center justify-center text-xs transition-all duration-300 group-hover:translate-y-0.5 shrink-0 ml-3 shadow-md">
+                          <FaDownload />
+                        </div>
+                      </a>
+                    )}
+
+                    {resolvedData.about?.backend_cv_url && resolvedData.about.backend_cv_url !== "" && (
+                      <a
+                        href={resolveImageUrl(resolvedData.about.backend_cv_url)}
+                        target="_blank"
+                        download
+                        rel="noopener noreferrer"
+                        className="group relative flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-slate-800/80 hover:border-emerald-500/50 shadow-lg hover:shadow-emerald-500/10 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 min-w-[260px] max-w-sm flex-1"
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="w-11 h-11 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-lg shrink-0 group-hover:scale-105 transition-all">
+                            <FaFilePdf />
+                          </div>
+                          <div className="text-left min-w-0">
+                            <h4 className="text-sm font-bold text-white group-hover:text-emerald-300 transition-colors truncate">
+                              Backend Developer CV
+                            </h4>
+                            <p className="text-[11px] font-medium text-slate-400 mt-0.5 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              <span>Backend Track</span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="w-9 h-9 rounded-xl bg-slate-800/80 group-hover:bg-emerald-500 text-slate-400 group-hover:text-white flex items-center justify-center text-xs transition-all duration-300 group-hover:translate-y-0.5 shrink-0 ml-3 shadow-md">
+                          <FaDownload />
+                        </div>
+                      </a>
+                    )}
+
+                    {resolvedData.about?.qa_cv_url && resolvedData.about.qa_cv_url !== "" && (
+                      <a
+                        href={resolveImageUrl(resolvedData.about.qa_cv_url)}
+                        target="_blank"
+                        download
+                        rel="noopener noreferrer"
+                        className="group relative flex items-center justify-between p-3.5 sm:p-4 rounded-2xl bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-slate-800/80 hover:border-cyan-500/50 shadow-lg hover:shadow-cyan-500/10 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 min-w-[260px] max-w-sm flex-1"
+                      >
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <div className="w-11 h-11 rounded-xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center justify-center text-lg shrink-0 group-hover:scale-105 transition-all">
+                            <FaFilePdf />
+                          </div>
+                          <div className="text-left min-w-0">
+                            <h4 className="text-sm font-bold text-white group-hover:text-cyan-300 transition-colors truncate">
+                              QA Engineer CV
+                            </h4>
+                            <p className="text-[11px] font-medium text-slate-400 mt-0.5 flex items-center gap-1.5">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                              <span>QA Track</span>
+                            </p>
+                          </div>
+                        </div>
+                        <div className="w-9 h-9 rounded-xl bg-slate-800/80 group-hover:bg-cyan-500 text-slate-400 group-hover:text-slate-950 flex items-center justify-center text-xs transition-all duration-300 group-hover:translate-y-0.5 shrink-0 ml-3 shadow-md">
+                          <FaDownload />
+                        </div>
+                      </a>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           )}
         </motion.section>
@@ -237,50 +326,106 @@ export default function AboutClient({ data }: { data: AboutData | null }) {
         </motion.section>
       )}
 
-      {/* Experience Section */}
+      {/* Experience & Internships Section */}
       {resolvedData.experience && resolvedData.experience.length > 0 && (
         <motion.section className="mb-16" {...fadeIn} transition={{ delay: 0.4 }}>
-          <motion.h2 className="section-title text-center text-3xl font-bold mb-8" {...fadeInUp}>
-            Experience
+          <motion.h2 className="section-title text-center text-3xl font-bold mb-3" {...fadeInUp}>
+            {hasInternships ? "Experience & Internships" : "Experience"}
           </motion.h2>
-          <div className="max-w-4xl mx-auto relative border-l-2 border-gray-200 dark:border-tag-border pl-6 space-y-12">
-            {resolvedData.experience.map((exp) => (
-              <motion.div
-                key={exp.id}
-                className="relative bg-white dark:bg-dark/50 p-6 rounded-lg shadow-md border border-gray-100 dark:border-tag-border"
-                variants={fadeInUp}
-                initial="initial"
-                whileInView="animate"
-                viewport={{ once: true }}
-                {...cardHoverSmall}
+
+          {hasInternships && (
+            <div className="flex justify-center items-center gap-2 mb-10">
+              <button
+                onClick={() => setExpFilter("all")}
+                className={`px-3.5 py-1 text-xs rounded-full font-medium transition-all ${expFilter === "all"
+                  ? "bg-primary text-white shadow-md shadow-primary/20"
+                  : "bg-white/5 text-secondary hover:text-white"
+                  }`}
               >
-                {/* Timeline Dot */}
-                <span className="absolute -left-[35px] top-[26px] flex h-4 w-4 items-center justify-center rounded-full bg-primary ring-4 ring-white dark:ring-deep-dark">
-                  <span className="h-2 w-2 rounded-full bg-cyan-400"></span>
-                </span>
+                All Records
+              </button>
+              <button
+                onClick={() => setExpFilter("job")}
+                className={`px-3.5 py-1 text-xs rounded-full font-medium transition-all ${expFilter === "job"
+                  ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20"
+                  : "bg-white/5 text-secondary hover:text-white"
+                  }`}
+              >
+                Work Experience
+              </button>
+              <button
+                onClick={() => setExpFilter("internship")}
+                className={`px-3.5 py-1 text-xs rounded-full font-medium transition-all ${expFilter === "internship"
+                  ? "bg-purple-500 text-white shadow-md shadow-purple-500/20"
+                  : "bg-white/5 text-secondary hover:text-white"
+                  }`}
+              >
+                Internships
+              </button>
+            </div>
+          )}
 
-                <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-4">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                      {exp.job_title}
-                    </h3>
-                    <p className="text-primary font-medium">{exp.company}</p>
-                  </div>
-                  <div className="text-left md:text-right mt-2 md:mt-0 text-sm text-secondary">
-                    <p className="font-semibold text-slate-700 dark:text-cyan-400">{exp.duration}</p>
-                    <p className="text-xs">{exp.location}</p>
-                  </div>
-                </div>
+          <div className="max-w-4xl mx-auto relative border-l-2 border-gray-200 dark:border-tag-border pl-6 space-y-12">
+            {filteredExperiences.map((exp) => {
+              const expType = exp.type || "Job";
+              const isInternship = expType.toLowerCase() === "internship";
 
-                {exp.tasks && exp.tasks.length > 0 && (
-                  <ul className="list-disc pl-5 space-y-2 text-secondary text-sm">
-                    {exp.tasks.map((task, i) => (
-                      <li key={i}>{task}</li>
-                    ))}
-                  </ul>
-                )}
-              </motion.div>
-            ))}
+              return (
+                <motion.div
+                  key={exp.id}
+                  className="relative bg-white dark:bg-dark/50 p-6 rounded-lg shadow-md border border-gray-100 dark:border-tag-border"
+                  variants={fadeInUp}
+                  initial="initial"
+                  whileInView="animate"
+                  viewport={{ once: true }}
+                  {...cardHoverSmall}
+                >
+                  {/* Timeline Dot */}
+                  <span className={`absolute -left-[35px] top-[26px] flex h-4 w-4 items-center justify-center rounded-full ring-4 ring-white dark:ring-deep-dark ${isInternship ? "bg-purple-500" : "bg-primary"
+                    }`}>
+                    <span className={`h-2 w-2 rounded-full ${isInternship ? "bg-purple-300" : "bg-cyan-400"}`}></span>
+                  </span>
+
+                  {/* Header Badge */}
+                  <div className="flex items-center gap-2 mb-2">
+                    {isInternship ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-500/10 text-purple-400 border border-purple-500/30">
+                        Internship
+                      </span>
+                    ) : expType.toLowerCase() === "freelance" ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+                        Freelance Contract
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                        Work Experience
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col md:flex-row md:justify-between md:items-start mb-4">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                        {exp.job_title}
+                      </h3>
+                      <p className="text-primary font-medium">{exp.company}</p>
+                    </div>
+                    <div className="text-left md:text-right mt-2 md:mt-0 text-sm text-secondary">
+                      <p className="font-semibold text-slate-700 dark:text-cyan-400">{exp.duration}</p>
+                      <p className="text-xs">{exp.location}</p>
+                    </div>
+                  </div>
+
+                  {exp.tasks && exp.tasks.length > 0 && (
+                    <ul className="list-disc pl-5 space-y-2 text-secondary text-sm">
+                      {exp.tasks.map((task, i) => (
+                        <li key={i}>{task}</li>
+                      ))}
+                    </ul>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         </motion.section>
       )}
@@ -301,24 +446,24 @@ export default function AboutClient({ data }: { data: AboutData | null }) {
             {resolvedData.education.map((edu) => {
               const eduType = edu.type || "Education";
 
-              const badgeColor = 
+              const badgeColor =
                 eduType === "Certification"
                   ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
                   : eduType === "Course"
-                  ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
-                  : eduType === "Bootcamp"
-                  ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
-                  : eduType === "Diploma"
-                  ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
-                  : eduType === "Internship"
-                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                  : eduType === "Workshop"
-                  ? "bg-orange-500/10 text-orange-400 border-orange-500/20"
-                  : eduType === "Fellowship"
-                  ? "bg-teal-500/10 text-teal-400 border-teal-500/20"
-                  : eduType === "Award & Honor"
-                  ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
-                  : "bg-cyan-500/10 text-cyan-400 border-cyan-500/20";
+                    ? "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                    : eduType === "Bootcamp"
+                      ? "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                      : eduType === "Diploma"
+                        ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20"
+                        : eduType === "Internship"
+                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                          : eduType === "Workshop"
+                            ? "bg-orange-500/10 text-orange-400 border-orange-500/20"
+                            : eduType === "Fellowship"
+                              ? "bg-teal-500/10 text-teal-400 border-teal-500/20"
+                              : eduType === "Award & Honor"
+                                ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+                                : "bg-cyan-500/10 text-cyan-400 border-cyan-500/20";
 
               const details = [
                 edu.university,

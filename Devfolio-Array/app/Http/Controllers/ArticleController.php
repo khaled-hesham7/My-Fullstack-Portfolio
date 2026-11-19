@@ -20,20 +20,21 @@ class ArticleController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'title_en'          => 'required|string|max:255',
-            'excerpt_en'        => 'required|string',
+            'title_en'          => 'nullable|string|max:255',
+            'excerpt_en'        => 'nullable|string',
             'title_ar'          => 'nullable|string|max:255',
             'excerpt_ar'        => 'nullable|string',
             'content_ar'        => 'nullable|array',
             'content_ar.*.title'=> 'nullable|string',
             'content_ar.*.text' => 'nullable|string',
-            'tags'              => 'nullable|array',
-            'feature_image'     => 'nullable|file|mimes:jpg,jpeg,png,gif,webp',
-            'feature_video'     => 'nullable|file|mimes:mp4,mov,avi,wmv',
+            'tags'              => 'nullable',
+            'feature_image'     => 'nullable',
+            'feature_video'     => 'nullable',
             'blocks'            => 'nullable|array',
-            'blocks.*.images.*' => 'nullable|file|mimes:jpg,jpeg,png,gif,webp',
-            'blocks.*.videos.*' => 'nullable|file|mimes:mp4,mov,avi,wmv',
+            'blocks.*.images.*' => 'nullable',
+            'blocks.*.videos.*' => 'nullable',
             'is_featured'       => 'nullable|boolean',
+            'category'          => 'nullable|string|in:technical,personal',
         ]);
 
         $featureImagePath = $request->hasFile('feature_image')
@@ -92,7 +93,9 @@ class ArticleController extends Controller
             }
             $item['videos'] = $videos;
 
-            $contentEn[] = $item;
+            if ($item['title'] || $item['text'] || $item['code'] || !empty($item['images']) || !empty($item['videos'])) {
+                $contentEn[] = $item;
+            }
         }
 
         $contentAr = [];
@@ -106,22 +109,43 @@ class ArticleController extends Controller
                 $item['images'] = $contentEn[$i]['images'] ?? [];
                 $item['videos'] = $contentEn[$i]['videos'] ?? [];
 
-                $contentAr[] = $item;
+                if ($item['title'] || $item['text'] || $item['code'] || !empty($item['images']) || !empty($item['videos'])) {
+                    $contentAr[] = $item;
+                }
             }
         }
 
+        // Seamless block cross-fallback: if one language has content and the other doesn't, mirror it
+        if (empty($contentEn) && !empty($contentAr)) {
+            $contentEn = $contentAr;
+        } elseif (empty($contentAr) && !empty($contentEn)) {
+            $contentAr = $contentEn;
+        }
+
+        // Title and Excerpt cross-fallback: no language is strictly required
+        $titleEn = $request->filled('title_en') ? $request->title_en : ($request->filled('title_ar') ? $request->title_ar : 'Untitled Article');
+        $titleAr = $request->filled('title_ar') ? $request->title_ar : ($request->filled('title_en') ? $request->title_en : 'مقال جديد');
+        $excerptEn = $request->excerpt_en ?: ($request->excerpt_ar ?: '');
+        $excerptAr = $request->excerpt_ar ?: ($request->excerpt_en ?: '');
+
+        $tags = $request->tags ?? [];
+        if (is_string($tags)) {
+            $tags = array_values(array_filter(array_map('trim', explode(',', $tags))));
+        }
+
         $article = Article::create([
-            'title_en'      => $request->title_en,
-            'excerpt_en'    => $request->excerpt_en,
+            'title_en'      => $titleEn,
+            'excerpt_en'    => $excerptEn,
             'content_en'    => $contentEn,
-            'title_ar'      => $request->title_ar ?? null,
-            'excerpt_ar'    => $request->excerpt_ar ?? null,
+            'title_ar'      => $titleAr,
+            'excerpt_ar'    => $excerptAr,
             'content_ar'    => !empty($contentAr) ? $contentAr : null,
             'feature_image' => $featureImagePath,
             'feature_video' => $featureVideoPath,
-            'tags'          => $request->tags ?? [],
+            'tags'          => $tags,
             'author_id'     => auth()->id() ?? 1,
             'is_featured'   => $request->has('is_featured') ? (bool)$request->is_featured : false,
+            'category'      => $request->input('category', 'technical'),
         ]);
 
         return $this->successResponse(
@@ -139,15 +163,15 @@ class ArticleController extends Controller
         $article = Article::findOrFail($id);
 
         $request->validate([
-            'title_ar'          => 'required|string|max:255',
-            'excerpt_ar'        => 'required|string',
+            'title_ar'          => 'nullable|string|max:255',
+            'excerpt_ar'        => 'nullable|string',
             'content_ar'        => 'nullable|array',
             'content_ar.*.title'=> 'nullable|string',
             'content_ar.*.text' => 'nullable|string',
         ]);
 
         $contentAr = $request->input('content_ar', []);
-        $contentEn = $article->content_en;
+        $contentEn = $article->content_en ?? [];
 
         foreach ($contentAr as $i => &$item) {
             $item['title']  = $item['title'] ?? null;
@@ -159,9 +183,9 @@ class ArticleController extends Controller
         unset($item);
 
         $article->update([
-            'title_ar'   => $request->title_ar,
-            'excerpt_ar' => $request->excerpt_ar,
-            'content_ar' => $contentAr,
+            'title_ar'   => $request->title_ar ?: ($article->title_ar ?: $article->title_en),
+            'excerpt_ar' => $request->excerpt_ar ?: ($article->excerpt_ar ?: $article->excerpt_en),
+            'content_ar' => !empty($contentAr) ? $contentAr : $article->content_ar,
         ]);
 
         return $this->successResponse(
@@ -183,12 +207,24 @@ class ArticleController extends Controller
             return $this->errorResponse(__('messages.max_per_page_exceeded'), 400);
         }
 
-        $articles = Article::with(['author'])
+        $query = Article::with(['author'])
             ->withCount(['likesRelation as likes_relation_count'])
             ->withExists(['likesRelation as is_liked' => function($query) use ($ip) {
                 $query->where('ip_address', $ip);
-            }])
-            ->latest()
+            }]);
+
+        if ($request->filled('category')) {
+            $cat = $request->query('category');
+            if ($cat === 'technical') {
+                $query->where(function($q) {
+                    $q->where('category', 'technical')->orWhereNull('category');
+                });
+            } else {
+                $query->where('category', $cat);
+            }
+        }
+
+        $articles = $query->latest()
             ->paginate($perPage);
 
         return $this->paginatedResponse(
@@ -208,17 +244,18 @@ class ArticleController extends Controller
         \Illuminate\Support\Facades\Log::info('Incoming Article Update Request Data for Article ID ' . $id . ':', $request->all());
 
         $request->validate([
-            'title_en'          => 'sometimes|required|string|max:255',
-            'excerpt_en'        => 'sometimes|required|string',
+            'title_en'          => 'nullable|string|max:255',
+            'excerpt_en'        => 'nullable|string',
             'title_ar'          => 'nullable|string|max:255',
             'excerpt_ar'        => 'nullable|string',
             'content_ar'        => 'nullable|array',
-            'feature_image'     => 'nullable|file|mimes:jpg,jpeg,png,gif,webp',
-            'feature_video'     => 'nullable|file|mimes:mp4,mov,avi,wmv',
+            'feature_image'     => 'nullable',
+            'feature_video'     => 'nullable',
             'blocks'            => 'nullable|array',
             'blocks.*.images.*' => 'nullable', 
             'blocks.*.videos.*' => 'nullable', 
             'is_featured'       => 'nullable|boolean',
+            'category'          => 'nullable|string|in:technical,personal',
         ]);
 
         if ($request->hasFile('feature_image')) {
@@ -301,17 +338,35 @@ class ArticleController extends Controller
             }
         }
 
+        // Seamless cross-mirroring of blocks
+        if (empty($contentEn) && !empty($contentAr)) {
+            $contentEn = $contentAr;
+        } elseif (empty($contentAr) && !empty($contentEn)) {
+            $contentAr = $contentEn;
+        }
+
+        $titleEn = $request->filled('title_en') ? $request->title_en : ($request->filled('title_ar') ? $request->title_ar : $article->title_en);
+        $titleAr = $request->filled('title_ar') ? $request->title_ar : ($request->filled('title_en') ? $request->title_en : $article->title_ar);
+        $excerptEn = $request->has('excerpt_en') ? $request->excerpt_en : ($request->has('excerpt_ar') ? $request->excerpt_ar : $article->excerpt_en);
+        $excerptAr = $request->has('excerpt_ar') ? $request->excerpt_ar : ($request->has('excerpt_en') ? $request->excerpt_en : $article->excerpt_ar);
+
+        $tags = $request->has('tags') ? $request->tags : $article->tags;
+        if (is_string($tags)) {
+            $tags = array_values(array_filter(array_map('trim', explode(',', $tags))));
+        }
+
         $article->update([
-            'title_en'      => $request->title_en ?? $article->title_en,
-            'excerpt_en'    => $request->excerpt_en ?? $article->excerpt_en,
+            'title_en'      => $titleEn,
+            'excerpt_en'    => $excerptEn,
             'content_en'    => $contentEn,
-            'title_ar'      => $request->has('title_ar') ? ($request->title_ar ?: null) : $article->title_ar,
-            'excerpt_ar'    => $request->has('excerpt_ar') ? ($request->excerpt_ar ?: null) : $article->excerpt_ar,
+            'title_ar'      => $titleAr,
+            'excerpt_ar'    => $excerptAr,
             'content_ar'    => !empty($contentAr) ? $contentAr : null,
-            'tags'          => $request->tags ?? $article->tags,
+            'tags'          => $tags,
             'feature_image' => $article->feature_image,
             'feature_video' => $article->feature_video,
             'is_featured'   => $request->has('is_featured') ? (bool)$request->is_featured : $article->is_featured,
+            'category'      => $request->has('category') ? $request->category : ($article->category ?? 'technical'),
         ]);
 
         return $this->successResponse(
@@ -408,7 +463,12 @@ class ArticleController extends Controller
         $path = urldecode($idOrPath);
         $parsedUrl = parse_url($path);
         $path = $parsedUrl['path'] ?? $path;
-        $path = preg_replace('/^\/?(storage\/)?/', '', $path);
+        $path = ltrim(preg_replace('/^\/?(storage\/)?/', '', $path), '/\\');
+
+        // Security: Prevent path traversal and restrict deletions to the articles media directory
+        if (str_contains($path, '..') || !str_starts_with($path, 'articles/')) {
+            return $this->errorResponse(__('messages.media_not_found'), 400);
+        }
 
         $articles = Article::all();
         $deleted = false;

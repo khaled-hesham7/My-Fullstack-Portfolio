@@ -63,17 +63,17 @@ export default function ScatteredBackdrop() {
     setMounted(true);
 
     const generated: BackdropItem[] = [];
-    const totalItems = 28; // 14 icons, 14 snippets
+    const totalItems = 14; // 7 icons, 7 snippets
 
     for (let i = 0; i < totalItems; i++) {
       const type = i % 2 === 0 ? "icon" : "snippet";
       
-      // Distribute evenly across a grid, then apply random jitter
+      // Distribute evenly across a grid
       const row = Math.floor(i / 7);
       const col = i % 7;
       
-      const baseTop = 8 + row * 22; // ranges from 8% to 74%
-      const baseLeft = 6 + col * 13; // ranges from 6% to 84%
+      const baseTop = 15 + row * 45; // ranges from 15% to 60%
+      const baseLeft = 8 + col * 13; // ranges from 8% to 86%
       
       const jitterTop = (Math.random() - 0.5) * 12;
       const jitterLeft = (Math.random() - 0.5) * 10;

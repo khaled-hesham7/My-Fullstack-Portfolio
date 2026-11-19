@@ -26,7 +26,7 @@ class ProjectRequest extends FormRequest
         'description'   => 'required|string',
         'github_link'   => 'nullable|url',
         'demo_link'     => 'nullable|url',
-        'tags'          => 'required|array',
+        'tags'          => 'nullable|array',
         'tags.*'        => 'string', // للتأكد إن كل عنصر في المصفوفة هو نص
         'project_image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048', // 2MB max
         'is_featured'   => 'nullable|boolean',

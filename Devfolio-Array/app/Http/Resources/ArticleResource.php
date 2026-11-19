@@ -13,10 +13,16 @@ class ArticleResource extends JsonResource
         $ip = $request->ip();
         // $lang = app()->getLocale(); // قراءة اللغة الحالية (سواء ar أو en)
         $lang = $request->header('Accept-Language', 'en');
-        // تحديد البيانات النصية بناءً على اللغة المطلوبة، مع عمل fallback للإنجليزي لو العربي مش موجود
-        $title   = ($lang === 'ar' && $this->title_ar) ? $this->title_ar : $this->title_en;
-        $excerpt = ($lang === 'ar' && $this->excerpt_ar) ? $this->excerpt_ar : $this->excerpt_en;
-        $content = ($lang === 'ar' && $this->content_ar) ? $this->content_ar : $this->content_en;
+        // Smart fallback: if requested language is empty, fallback to the other language seamlessly
+        if ($lang === 'ar') {
+            $title   = $this->title_ar ?: ($this->title_en ?: '');
+            $excerpt = $this->excerpt_ar ?: ($this->excerpt_en ?: '');
+            $content = !empty($this->content_ar) ? $this->content_ar : (!empty($this->content_en) ? $this->content_en : []);
+        } else {
+            $title   = $this->title_en ?: ($this->title_ar ?: '');
+            $excerpt = $this->excerpt_en ?: ($this->excerpt_ar ?: '');
+            $content = !empty($this->content_en) ? $this->content_en : (!empty($this->content_ar) ? $this->content_ar : []);
+        }
 
         // الحل الذكي بتاعك للـ N+1 زي ما هو بدون أي تغيير
         $liked = $this->whenHas(
@@ -29,6 +35,10 @@ class ArticleResource extends JsonResource
             'id'            => $this->id,
             'title'         => $title,
             'excerpt'       => $excerpt,
+            'title_en'      => $this->title_en,
+            'title_ar'      => $this->title_ar,
+            'excerpt_en'    => $this->excerpt_en,
+            'excerpt_ar'    => $this->excerpt_ar,
             'feature_image' => $this->feature_image ? asset('storage/' . $this->feature_image) : null,
             'feature_video' => $this->feature_video ? asset('storage/' . $this->feature_video) : null,
             'tags'          => $this->tags ?? [],
@@ -42,6 +52,7 @@ class ArticleResource extends JsonResource
                 'liked' => $liked,
             ],
             'is_featured'   => (bool)$this->is_featured,
+            'category'      => $this->category ?? 'technical',
             'date'          => [
                 'raw'  => $this->created_at, // استبدلنا $this->date بـ created_at لضمان الدقة
                 'diff' => $this->created_at ? $this->created_at->diffForHumans() : null,

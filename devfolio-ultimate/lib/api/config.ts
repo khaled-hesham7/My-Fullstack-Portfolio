@@ -1,3 +1,8 @@
+export interface ApiError extends Error {
+  status?: number;
+  data?: unknown;
+}
+
 export async function apiFetch(
   baseUrl: string,
   endpoint: string,
@@ -5,7 +10,7 @@ export async function apiFetch(
   tokenKey?: string
 ) {
   const token =
-    typeof window !== undefined && tokenKey
+    typeof window !== "undefined" && tokenKey
       ? localStorage.getItem(tokenKey)
       : null;
   const res = await fetch(`${baseUrl}${endpoint}`, {
@@ -23,7 +28,7 @@ export async function apiFetch(
     } catch {
       // Ignore JSON parse failures
     }
-    const error = new Error(`API Error: ${res.status}`) as any;
+    const error: ApiError = new Error(`API Error: ${res.status}`);
     error.status = res.status;
     error.data = errorData;
     throw error;

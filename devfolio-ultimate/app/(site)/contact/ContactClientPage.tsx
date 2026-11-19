@@ -212,7 +212,7 @@ export default function ContactClientPage() {
                             rel="noopener noreferrer"
                             className="text-slate-300 hover:text-cyan-400 text-sm transition-colors underline flex items-center gap-1.5"
                           >
-                            {l.address} <span className="text-[10px] text-cyan-500 font-bold bg-cyan-500/10 px-1.5 py-0.5 rounded-full">Open Map 🗺️</span>
+                            {l.address} <span className="text-[10px] text-cyan-500 font-bold bg-cyan-500/10 px-1.5 py-0.5 rounded-full">Open Map</span>
                           </a>
                         </p>
                       ) : (
@@ -250,9 +250,8 @@ export default function ContactClientPage() {
                 value={formData.name}
                 onChange={handleChange}
                 required
-                className={`w-full h-11 px-4 rounded-xl border text-sm bg-slate-950 text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all ${
-                  errors.name ? "border-red-500" : "border-slate-800"
-                }`}
+                className={`w-full h-11 px-4 rounded-xl border text-sm bg-slate-950 text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all ${errors.name ? "border-red-500" : "border-slate-800"
+                  }`}
                 placeholder="E.g. Khaled Hesham"
               />
               {errors.name && errors.name.map((err, i) => (
@@ -271,9 +270,8 @@ export default function ContactClientPage() {
                 value={formData.email}
                 onChange={handleChange}
                 required
-                className={`w-full h-11 px-4 rounded-xl border text-sm bg-slate-950 text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all ${
-                  errors.email ? "border-red-500" : "border-slate-800"
-                }`}
+                className={`w-full h-11 px-4 rounded-xl border text-sm bg-slate-950 text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all ${errors.email ? "border-red-500" : "border-slate-800"
+                  }`}
                 placeholder="E.g. client@example.com"
               />
               {errors.email && errors.email.map((err, i) => (
@@ -295,9 +293,8 @@ export default function ContactClientPage() {
                 onChange={handleChange}
                 required
                 rows={4}
-                className={`w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-950 text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all ${
-                  errors.message ? "border-red-500" : "border-slate-800"
-                }`}
+                className={`w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-950 text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all ${errors.message ? "border-red-500" : "border-slate-800"
+                  }`}
                 placeholder="Write your message here (min 10 characters)..."
               />
               {errors.message && errors.message.map((err, i) => (

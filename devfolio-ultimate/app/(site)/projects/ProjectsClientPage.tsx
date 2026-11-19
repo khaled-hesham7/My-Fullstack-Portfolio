@@ -143,8 +143,13 @@ export default function ProjectsClientPage() {
         const response = await fetch(`${apiBase}/projects`);
         if (response.ok) {
           const payload = await response.json();
-          if (payload.success && payload.data && Array.isArray(payload.data.data)) {
-            const mapped = payload.data.data.map((p: any) => ({
+          const items = Array.isArray(payload.data)
+            ? payload.data
+            : Array.isArray(payload.data?.data)
+            ? payload.data.data
+            : [];
+          if (items.length > 0) {
+            const mapped = items.map((p: any) => ({
               id: p.id,
               title: p.title || "Untitled",
               description: p.description || "",
@@ -154,6 +159,8 @@ export default function ProjectsClientPage() {
               demoLink: p.demo_link || "#",
             }));
             setProjects(mapped);
+          } else {
+            setProjects([]);
           }
         }
       } catch (err) {

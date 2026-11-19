@@ -37,5 +37,6 @@ export interface Blog {
     likes: number;
     liked: boolean;
   };
+  category?: 'technical' | 'personal';
   dateDiff?: string | null;
 }

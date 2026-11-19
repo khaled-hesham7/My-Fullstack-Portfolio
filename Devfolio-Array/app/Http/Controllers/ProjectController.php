@@ -26,6 +26,7 @@ class ProjectController extends Controller
         $project = Project::create($request->validated());
 
         if ($request->hasFile('project_image')) {
+            $project->clearMediaCollection('project_images');
             $project->addMediaFromRequest('project_image')
                     ->toMediaCollection('project_images');
         }
@@ -53,9 +54,23 @@ class ProjectController extends Controller
         $project->update($request->validated());
 
         if ($request->hasFile('project_image')) {
+            $project->clearMediaCollection('project_images');
             $project->addMediaFromRequest('project_image')
                     ->toMediaCollection('project_images');
         }
+
+        return $this->successResponse(
+            new ProjectResource($project),
+            __('messages.project_updated'),
+            200
+        );
+    }
+
+    public function toggleFeatured($id)
+    {
+        $project = Project::findOrFail($id);
+        $project->is_featured = !$project->is_featured;
+        $project->save();
 
         return $this->successResponse(
             new ProjectResource($project),

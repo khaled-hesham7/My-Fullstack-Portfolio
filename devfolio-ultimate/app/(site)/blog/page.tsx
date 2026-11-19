@@ -7,7 +7,7 @@ const blogPageUrl = "https://the-forge-one.vercel.app/blog";
 const blogPageTitle = "Blog Posts | Khaled Hesham | The Forge";
 const blogPageDescription =
   "Read the latest blog posts about web development, React, Next.js, and software engineering tips.";
-const blogPageImage = "https://the-forge-one.vercel.app/youssef.png";
+const blogPageImage = "https://the-forge-one.vercel.app/khalid.jpeg";
 
 export const metadata = generateSEO({
   title: blogPageTitle,
@@ -32,7 +32,7 @@ export default async function Blog() {
   let articles = [];
   try {
     const apiBase = getApiBaseUrl();
-    const res = await fetch(`${apiBase}/articles?per_page=12`, { cache: "no-store" });
+    const res = await fetch(`${apiBase}/articles?per_page=12&category=technical`, { cache: "no-store" });
     if (res.ok) {
       const payload = await res.json();
       if (payload.success && payload.data) {

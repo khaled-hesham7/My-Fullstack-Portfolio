@@ -1,11 +1,6 @@
-import { Outfit } from "next/font/google";
 import { ThemeContextProvider } from "./context/ThemeContext";
 import { SidebarProvider } from "./context/SidebarContext";
 import type { Metadata } from "next";
-
-const outfit = Outfit({
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Khaled Hesham | Backend Developer | The Forge",
@@ -53,7 +48,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`bg-white transition-colors dark:bg-deep-dark dark:text-white ${outfit.className}`}
+        className="bg-white font-sans transition-colors dark:bg-deep-dark dark:text-white"
       >
         <ThemeContextProvider>
           <SidebarProvider>{children}</SidebarProvider>

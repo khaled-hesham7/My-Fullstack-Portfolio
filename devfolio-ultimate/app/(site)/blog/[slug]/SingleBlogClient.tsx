@@ -17,7 +17,7 @@ import { useCopyToClipboard } from "react-use";
 import Image from "next/image";
 import { Blog } from "@/types";
 import { resolveImageUrl, getApiBaseUrl } from "@/lib/utils";
-import { FaTwitter, FaFacebook, FaLinkedin, FaLink } from "react-icons/fa";
+import { FaTwitter, FaFacebook, FaLinkedin, FaLink, FaGlobe, FaLaptopCode, FaPenNib } from "react-icons/fa";
 
 function mapBackendBlocksToFrontend(backendContent: any[]): any[] {
   if (!backendContent || !Array.isArray(backendContent)) return [];
@@ -184,7 +184,14 @@ const SingleBlogClient = ({ blogPost }: SingleBlogClientProps) => {
     }
   };
 
+  const isFirstMount = React.useRef(true);
+
   React.useEffect(() => {
+    if (isFirstMount.current) {
+      isFirstMount.current = false;
+      return;
+    }
+
     const fetchTranslation = async () => {
       setLoading(true);
       try {
@@ -408,7 +415,7 @@ const SingleBlogClient = ({ blogPost }: SingleBlogClientProps) => {
           onClick={() => setLang(lang === 'en' ? 'ar' : 'en')}
           className="px-4 py-2 rounded-full text-xs font-medium bg-slate-900/60 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 hover:border-slate-700 transition-all duration-300 cursor-pointer backdrop-blur-md flex items-center gap-2 shadow-[0_4px_20px_rgba(0,0,0,0.3)] hover:shadow-[0_4px_20px_rgba(34,211,238,0.15)]"
         >
-          <span className="text-sm">🌐</span>
+          <FaGlobe className="text-xs text-slate-400" />
           <span>{lang === 'en' ? 'العربية' : 'English'}</span>
         </button>
       </div>
@@ -453,6 +460,28 @@ const SingleBlogClient = ({ blogPost }: SingleBlogClientProps) => {
 
         {/* Main Column - Article Content */}
         <div className={headings.length > 0 ? "lg:col-span-3 max-w-3xl w-full mx-auto space-y-8" : "lg:col-span-4 max-w-3xl w-full mx-auto space-y-8"}>
+          {/* Category Badge */}
+          <div className={`mb-2 ${contentLang === 'rtl' ? 'text-right' : 'text-left'}`}>
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full ${
+                currentPost.category === "personal"
+                  ? "bg-purple-950/60 text-purple-300 border border-purple-500/30"
+                  : "bg-cyan-950/60 text-cyan-300 border border-cyan-500/30"
+              }`}
+            >
+              {currentPost.category === "personal" ? <FaPenNib className="text-xs" /> : <FaLaptopCode className="text-xs" />}
+              <span>
+                {currentPost.category === "personal"
+                  ? currentPost.lang === "ar"
+                    ? "خواطر ومقالات شخصية"
+                    : "Personal Notes"
+                  : currentPost.lang === "ar"
+                  ? "مقال تقني"
+                  : "Technical Article"}
+              </span>
+            </span>
+          </div>
+
           {/* Title */}
           <h1 className={`md:text-4xl text-2xl font-bold mb-2 text-primary leading-tight ${contentLang === 'rtl' ? 'text-right' : 'text-left'}`}>
             {currentPost.title}

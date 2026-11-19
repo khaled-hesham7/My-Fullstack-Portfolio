@@ -47,7 +47,6 @@ export default function AdminProfilePage() {
       });
 
       if (response.status === 404) {
-        // No profile record created yet
         setIsLoading(false);
         return;
       }
@@ -121,29 +120,24 @@ export default function AdminProfilePage() {
       const activeToken = token || localStorage.getItem("admin_token");
       const apiBase = getApiBaseUrl();
 
-      const formDataObj = new FormData();
-      formDataObj.append("name", name);
-      formDataObj.append("description", description);
-      formDataObj.append("sub_title", subTitle);
-      formDataObj.append("skills", skills);
-      formDataObj.append("typewriter_text", typewriterText);
+      const formData = new FormData();
+      formData.append("name", name);
+      formData.append("description", description);
+      formData.append("sub_title", subTitle || "");
+      formData.append("skills", skills || "");
+      formData.append("typewriter_text", typewriterText || "");
 
       if (selectedImage) {
-        formDataObj.append("image", selectedImage);
+        formData.append("image", selectedImage);
       }
 
-      // If we have profileId, do update (Route::post('/profiles/{id}')), else do store (Route::post('/profiles'))
-      const url = profileId
-        ? `${apiBase}/profiles/${profileId}`
-        : `${apiBase}/profiles`;
-
-      const response = await fetch(url, {
-        method: "POST", // Laravel routing expects POST for updates with file uploads
+      const response = await fetch(`${apiBase}/profiles`, {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${activeToken}`,
           Accept: "application/json",
         },
-        body: formDataObj,
+        body: formData,
       });
 
       if (!response.ok) {
@@ -154,7 +148,7 @@ export default function AdminProfilePage() {
           return;
         }
         if (response.status === 401) {
-          setGlobalError("Session expired (401). Please log in again to save.");
+          setGlobalError("Session expired (401). Please log in again.");
           return;
         }
         throw new Error(errData.message || `Server returned status ${response.status}`);
@@ -162,9 +156,10 @@ export default function AdminProfilePage() {
 
       const payload = await response.json();
       if (payload.success) {
-        setSuccessMessage("Home Profile information saved successfully!");
-        setSelectedImage(null);
-        fetchProfileInfo();
+        setSuccessMessage("Hero profile preferences saved successfully!");
+        if (payload.data && payload.data.image_url) {
+          setImagePreviewUrl(payload.data.image_url);
+        }
       }
     } catch (err: any) {
       console.error("Profile submit error:", err);
@@ -175,181 +170,246 @@ export default function AdminProfilePage() {
   };
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 p-6 shadow-theme-xs max-w-3xl mx-auto">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-gray-800 dark:text-white/90">
-          Home Settings (Hero Profile)
-        </h2>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Update the profile details rendered on your landing page Hero and terminal mockup.
-        </p>
+    <div className="space-y-6 max-w-5xl mx-auto">
+      {/* Header Studio Section */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-slate-950 border border-slate-800/80 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-full bg-gradient-to-l from-cyan-500/10 to-transparent pointer-events-none" />
+
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="px-2.5 py-0.5 text-[11px] font-semibold tracking-wider uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-full">
+              Hero & Landing Presence
+            </span>
+            <span className="text-xs text-slate-400">Identity Studio</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+            Hero Profile & <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500">Terminal</span>
+          </h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Configure your headline, animated typewriter roles, interactive terminal commands, and avatar.
+          </p>
+        </div>
+
+        <button
+          type="submit"
+          form="hero-profile-form"
+          disabled={formLoading}
+          className="inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl font-medium text-sm text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 transition-all duration-200 shadow-lg shadow-cyan-500/20 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50"
+        >
+          {formLoading ? (
+            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+            </svg>
+          )}
+          <span>{formLoading ? "Saving..." : "Save Hero Settings"}</span>
+        </button>
       </div>
 
+      {/* Alerts */}
+      {successMessage && (
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/5">
+          <span>✓</span>
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {globalError && (
+        <div className="p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm flex items-center gap-2 shadow-lg shadow-rose-500/5">
+          <span>⚠️</span>
+          <span>{globalError}</span>
+        </div>
+      )}
+
       {isLoading ? (
-        <div className="flex justify-center items-center py-12 gap-2 text-gray-500 dark:text-gray-400">
-          <span className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin"></span>
-          <span>Loading profile details...</span>
+        <div className="flex justify-center items-center py-20 gap-3 text-slate-400">
+          <span className="w-6 h-6 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin"></span>
+          <span className="text-sm">Loading identity settings...</span>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {successMessage && (
-            <div className="p-3 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-sm dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900 font-semibold">
-              {successMessage}
-            </div>
-          )}
+        <form id="hero-profile-form" onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left 2 Cols: Core Identity Inputs */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Basic Details Card */}
+              <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl shadow-xl space-y-5">
+                <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800/80">
+                  <div className="w-7 h-7 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center text-xs font-bold">
+                    1
+                  </div>
+                  <h3 className="text-sm font-bold text-white tracking-wide uppercase">
+                    Personal Headline & Tagline
+                  </h3>
+                </div>
 
-          {globalError && (
-            <div className="p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm dark:bg-red-950/30 dark:text-red-400 dark:border-red-900">
-              {globalError}
-            </div>
-          )}
-
-          {/* Developer Name */}
-          <div>
-            <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-              Developer Name <span className="text-red-500">*</span>
-            </Label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={(e) => handleFieldChange("name", e.target.value, setName)}
-              className={`w-full h-11 px-4 py-2.5 rounded-lg border text-sm dark:bg-gray-900 dark:text-white outline-none focus:ring-3 focus:ring-brand-500/10 ${
-                errors.name
-                  ? "border-red-500 focus:border-red-500"
-                  : "border-gray-300 dark:border-gray-700 focus:border-brand-500"
-              }`}
-              placeholder="E.g. Khaled Hesham"
-            />
-            {errors.name && (
-              <p className="mt-1 text-xs text-red-500">{errors.name[0]}</p>
-            )}
-          </div>
-
-          {/* Short Hero Description / Terminal bio */}
-          <div>
-            <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-              Short Bio / Tagline <span className="text-red-500">*</span>
-            </Label>
-            <textarea
-              required
-              rows={4}
-              value={description}
-              onChange={(e) => handleFieldChange("description", e.target.value, setDescription)}
-              className={`w-full px-4 py-2.5 rounded-lg border text-sm dark:bg-gray-900 dark:text-white outline-none focus:ring-3 focus:ring-brand-500/10 ${
-                errors.description
-                  ? "border-red-500 focus:border-red-500"
-                  : "border-gray-300 dark:border-gray-700 focus:border-brand-500"
-              }`}
-              placeholder="E.g. crafting ideas into reality..."
-            />
-            {errors.description && (
-              <p className="mt-1 text-xs text-red-500">{errors.description[0]}</p>
-            )}
-          </div>
-
-          {/* Terminal Content */}
-          <div>
-            <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-              Terminal Screen Content
-            </Label>
-            <p className="text-xs text-gray-500 mb-2">
-              Tip: Lines starting with <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">~/</code> or <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">$</code> will simulate typed commands. Other lines print instantly as output.
-            </p>
-            <textarea
-              rows={10}
-              value={skills}
-              onChange={(e) => handleFieldChange("skills", e.target.value, setSkills)}
-              className={`w-full px-4 py-2.5 rounded-lg border text-sm font-mono dark:bg-gray-900 dark:text-white outline-none focus:ring-3 focus:ring-brand-500/10 ${
-                errors.skills
-                  ? "border-red-500 focus:border-red-500"
-                  : "border-gray-300 dark:border-gray-700 focus:border-brand-500"
-              }`}
-              placeholder="E.g.&#10;~/secure-route $ whoami&#10;> khaled hesham elsayed&#10;> Backend Developer & QA Engineer&#10;~/secure-route $ cat skills.json&#10;{&#10;  &quot;skills&quot;: [&quot;PHP&quot;, &quot;Laravel&quot;]&#10;}"
-            />
-            {errors.skills && (
-              <p className="mt-1 text-xs text-red-500">{errors.skills[0]}</p>
-            )}
-          </div>
-
-          {/* Typewriter Text */}
-          <div>
-            <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-              Animated Typewriter Text (Each phrase on a new line, or separated by comma or &amp;&amp;)
-            </Label>
-            <p className="text-xs text-gray-500 mb-2">
-              Write the phrases you want to animate one after another (they will type out, erase, and switch to the next phrase).
-            </p>
-            <textarea
-              rows={4}
-              value={typewriterText}
-              onChange={(e) => handleFieldChange("typewriter_text", e.target.value, setTypewriterText)}
-              className={`w-full px-4 py-2.5 rounded-lg border text-sm dark:bg-gray-900 dark:text-white outline-none focus:ring-3 focus:ring-brand-500/10 ${
-                errors.typewriter_text
-                  ? "border-red-500 focus:border-red-500"
-                  : "border-gray-300 dark:border-gray-700 focus:border-brand-500"
-              }`}
-              placeholder="E.g.&#10;Backend Developer&#10;QA Engineer&#10;Computer Science Student"
-            />
-            {errors.typewriter_text && (
-              <p className="mt-1 text-xs text-red-500">{errors.typewriter_text[0]}</p>
-            )}
-          </div>
-
-          {/* Profile Photo Avatar */}
-          <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
-            <Label className="mb-2 text-sm font-semibold block text-gray-700 dark:text-gray-300">
-              Hero Avatar Image
-            </Label>
-            <div className="flex flex-col gap-3">
-              <input
-                type="file"
-                ref={imageInputRef}
-                onChange={handleImageChange}
-                accept="image/*"
-                className="hidden"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => imageInputRef.current?.click()}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-800 dark:text-white text-xs font-semibold rounded-lg border border-gray-300 dark:border-gray-700 transition-colors cursor-pointer"
-                >
-                  Choose Avatar File
-                </button>
-                {selectedImage && (
-                  <span className="text-xs text-gray-500 truncate max-w-[200px] self-center">
-                    {selectedImage.name}
-                  </span>
-                )}
-              </div>
-              {errors.image && (
-                <p className="mt-0.5 text-xs text-red-500">{errors.image[0]}</p>
-              )}
-
-              {/* Preview Image */}
-              {imagePreviewUrl ? (
-                <div className="relative w-32 h-32 rounded-full overflow-hidden border border-gray-200 bg-gray-50 dark:border-gray-800 mt-1">
-                  <Image
-                    src={resolveImageUrl(imagePreviewUrl)}
-                    alt="Hero Avatar Preview"
-                    fill
-                    className="object-cover"
+                {/* Developer Name */}
+                <div>
+                  <Label className="mb-1.5 text-xs font-semibold text-slate-300 block">
+                    Developer Full Name <span className="text-cyan-400">*</span>
+                  </Label>
+                  <input
+                    type="text"
+                    required
+                    value={name}
+                    onChange={(e) => handleFieldChange("name", e.target.value, setName)}
+                    className="w-full h-11 px-4 text-sm rounded-xl bg-slate-950/80 border border-slate-800 text-white placeholder-slate-500 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-all font-medium"
+                    placeholder="e.g. Khaled Hesham"
                   />
+                  {errors.name && <p className="mt-1 text-xs text-rose-400">{errors.name[0]}</p>}
                 </div>
-              ) : (
-                <div className="w-32 h-32 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-xs text-gray-400 border border-gray-200 dark:border-gray-800 mt-1">
-                  No Avatar
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* Actions */}
-          <div className="flex justify-end pt-4 border-t border-gray-100 dark:border-gray-800">
-            <Button type="submit" disabled={formLoading} className="w-full sm:w-auto">
-              {formLoading ? "Saving Settings..." : "Save Home Settings"}
-            </Button>
+                {/* Tagline / Bio */}
+                <div>
+                  <Label className="mb-1.5 text-xs font-semibold text-slate-300 block">
+                    Short Bio / Landing Tagline <span className="text-cyan-400">*</span>
+                  </Label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={description}
+                    onChange={(e) => handleFieldChange("description", e.target.value, setDescription)}
+                    className="w-full px-4 py-3 text-sm rounded-xl bg-slate-950/80 border border-slate-800 text-white placeholder-slate-500 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-all leading-relaxed"
+                    placeholder="e.g. Passionate Fullstack Software Engineer dedicated to crafting scalable backend architectures and intuitive digital experiences..."
+                  />
+                  {errors.description && <p className="mt-1 text-xs text-rose-400">{errors.description[0]}</p>}
+                </div>
+
+                {/* Animated Typewriter */}
+                <div>
+                  <Label className="mb-1 text-xs font-semibold text-slate-300 block">
+                    Animated Typewriter Roles <span className="text-slate-500">(1 per line or comma-separated)</span>
+                  </Label>
+                  <p className="text-[11px] text-slate-500 mb-2">
+                    These rotating titles type out and delete smoothly on your hero landing header.
+                  </p>
+                  <textarea
+                    rows={3}
+                    value={typewriterText}
+                    onChange={(e) => handleFieldChange("typewriter_text", e.target.value, setTypewriterText)}
+                    className="w-full px-4 py-2.5 text-xs font-mono rounded-xl bg-slate-950/80 border border-slate-800 text-cyan-300 placeholder-slate-600 outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500/30 transition-all"
+                    placeholder="Full Stack Engineer&#10;Backend & Systems Architect&#10;Open Source Contributor"
+                  />
+                  {typewriterText && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {typewriterText
+                        .split(/[\n,]+/)
+                        .map((s) => s.trim())
+                        .filter(Boolean)
+                        .map((item, idx) => (
+                          <span key={idx} className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                            {item}
+                          </span>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Interactive Terminal Simulator Card */}
+              <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl shadow-xl space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center text-xs font-bold">
+                      2
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-bold text-white tracking-wide uppercase">
+                        Hero Terminal Mockup
+                      </h3>
+                      <p className="text-[11px] text-slate-500">
+                        Interactive shell displayed in your portfolio hero section
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-slate-800 text-slate-400 border border-slate-700">
+                    bash / zsh
+                  </span>
+                </div>
+
+                <div className="p-3 bg-slate-950/60 border border-slate-800/60 rounded-xl text-[11px] text-slate-400 space-y-1">
+                  <p className="font-semibold text-slate-300">💡 Formatting Tip:</p>
+                  <p>Lines starting with <code className="px-1.5 py-0.5 rounded bg-slate-800 font-mono text-cyan-300">~/</code> or <code className="px-1.5 py-0.5 rounded bg-slate-800 font-mono text-cyan-300">$</code> simulate typed terminal commands with cursor. Other lines print as standard terminal output.</p>
+                </div>
+
+                <textarea
+                  rows={8}
+                  value={skills}
+                  onChange={(e) => handleFieldChange("skills", e.target.value, setSkills)}
+                  className="w-full p-4 text-xs font-mono rounded-xl bg-slate-950 border border-slate-800 text-emerald-400 placeholder-slate-700 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 transition-all custom-scrollbar leading-relaxed"
+                  placeholder="~/developer-hub $ whoami&#10;> Khaled Hesham — Full Stack Engineer&#10;~/developer-hub $ cat stack.json&#10;{&#10;  &quot;core&quot;: [&quot;PHP 8.4&quot;, &quot;Laravel 12&quot;, &quot;Next.js 15&quot;, &quot;TypeScript&quot;]&#10;}"
+                />
+              </div>
+            </div>
+
+            {/* Right Col: Avatar & Visual Profile */}
+            <div className="space-y-6">
+              <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-xl shadow-xl space-y-5">
+                <div className="flex items-center gap-2.5 pb-3 border-b border-slate-800/80">
+                  <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center text-xs font-bold">
+                    3
+                  </div>
+                  <h3 className="text-sm font-bold text-white tracking-wide uppercase">
+                    Avatar & Visuals
+                  </h3>
+                </div>
+
+                {/* Avatar Preview */}
+                <div className="flex flex-col items-center justify-center py-4">
+                  <div className="relative w-36 h-36 rounded-full overflow-hidden border-2 border-cyan-500/30 bg-slate-950 shadow-2xl group">
+                    {imagePreviewUrl ? (
+                      <Image
+                        src={resolveImageUrl(imagePreviewUrl)}
+                        alt="Hero Avatar"
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        sizes="144px"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 text-xs font-mono">
+                        <span className="text-3xl mb-1">👤</span>
+                        <span>No Avatar</span>
+                      </div>
+                    )}
+
+                    <div
+                      onClick={() => imageInputRef.current?.click()}
+                      className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white cursor-pointer"
+                    >
+                      <span className="text-xs font-semibold">Change Photo</span>
+                    </div>
+                  </div>
+
+                  <input
+                    type="file"
+                    ref={imageInputRef}
+                    onChange={handleImageChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => imageInputRef.current?.click()}
+                    className="mt-4 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 border border-slate-700 transition-colors"
+                  >
+                    Select Photo File
+                  </button>
+                  {selectedImage && (
+                    <span className="text-[11px] text-cyan-400 mt-2 truncate max-w-[200px]">
+                      Selected: {selectedImage.name}
+                    </span>
+                  )}
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-950/50 border border-slate-800/80 text-xs text-slate-400 space-y-1.5">
+                  <p className="font-semibold text-slate-300">Avatar Guidelines:</p>
+                  <p>• High-resolution square format (1:1 ratio)</p>
+                  <p>• Clean dark or transparent background looks best</p>
+                  <p>• Supported: PNG, JPG, WEBP</p>
+                </div>
+              </div>
+            </div>
           </div>
         </form>
       )}

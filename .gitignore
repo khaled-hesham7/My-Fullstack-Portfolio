@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Environment files
+.env
+.env.backup
+.env.production
+.env.local
+.env.*.local
+
+# Next.js build outputs
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Logs and runtime data
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Laravel Storage & Cache
+Devfolio-Array/storage/*.key
+Devfolio-Array/storage/oauth-*.key
+Devfolio-Array/storage/logs/*.log
+Devfolio-Array/storage/framework/cache/data/*
+Devfolio-Array/storage/framework/sessions/*
+Devfolio-Array/storage/framework/testing/*
+Devfolio-Array/storage/framework/views/*
+Devfolio-Array/bootstrap/cache/*.php
+
+# Local SQLite databases
+*.sqlite
+*.sqlite-journal
+
+# Operating System & Editor Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Local runner script
+powershell.cmd

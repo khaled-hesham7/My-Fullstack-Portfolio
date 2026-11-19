@@ -16,6 +16,11 @@ class AuthController extends Controller
 
     public function register(RegisterRequest $request)
     {
+        // For a personal portfolio, prevent unauthorized registrations once the admin exists
+        if (User::count() > 0) {
+            return $this->errorResponse(__('messages.registration_disabled'), 403);
+        }
+
         $user = User::create([
             'name'     => $request->name,
             'email'    => $request->email,

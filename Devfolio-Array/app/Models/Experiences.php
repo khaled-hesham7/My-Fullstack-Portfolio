@@ -8,6 +8,7 @@ class Experiences extends Model
 {
 
     protected $fillable = [
+        'type',
         'job_title',
         'company',
         'location',

@@ -1,7 +1,8 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
-import { FaCalendarAlt, FaClock } from "react-icons/fa";
+import { FaCalendarAlt, FaClock, FaEye, FaHeart, FaArrowRight } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { fadeInUp, staggerContainer, cardHoverSmall } from "@/utils/animations";
 import { resolveImageUrl } from "@/lib/utils";
@@ -21,7 +22,14 @@ interface ArticleData {
 }
 
 export default function Blogs({ data }: { data: any }) {
-  const rawArticles = data && (Array.isArray(data.Article) ? data.Article : data.Article?.data) || [];
+  const rawArticles =
+    (data &&
+      (Array.isArray(data.Article)
+        ? data.Article
+        : Array.isArray(data.articles)
+        ? data.articles
+        : data.Article?.data || data.articles?.data)) ||
+    [];
 
   if (rawArticles.length === 0) {
     return null;
@@ -40,18 +48,47 @@ export default function Blogs({ data }: { data: any }) {
     };
   });
 
-  return (
-    <section className="py-20">
-      <div className="container max-w-7xl mx-auto px-4">
-        <motion.h2
-          className="text-3xl font-bold mb-12 text-center"
-          {...fadeInUp}
-        >
-          Latest Blog Posts
-        </motion.h2>
+  // Grid layout adapts perfectly based on article count
+  const gridLayoutClass =
+    blogsToRender.length === 1
+      ? "grid grid-cols-1 max-w-md mx-auto"
+      : blogsToRender.length === 2
+      ? "grid grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto"
+      : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto";
 
+  return (
+    <section className="py-24 relative">
+      <div className="container max-w-7xl mx-auto px-4">
+        {/* Section Header */}
+        <div className="text-center max-w-2xl mx-auto mb-14">
+          <motion.div
+            className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-sky-400 text-[11px] font-bold uppercase tracking-widest mb-3"
+            {...fadeInUp}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
+            <span>Articles & Insights</span>
+          </motion.div>
+
+          <motion.h2
+            className="text-3xl md:text-4xl font-extrabold text-white tracking-tight"
+            {...fadeInUp}
+            transition={{ delay: 0.1 }}
+          >
+            Latest <span className="bg-gradient-to-r from-sky-400 via-primary to-indigo-400 bg-clip-text text-transparent">Blog Posts</span>
+          </motion.h2>
+
+          <motion.p
+            className="text-sm text-slate-400 mt-2.5 leading-relaxed"
+            {...fadeInUp}
+            transition={{ delay: 0.15 }}
+          >
+            Deep technical articles, software architecture practices, and developer guides.
+          </motion.p>
+        </div>
+
+        {/* Dynamic Balanced Cards Grid */}
         <motion.div
-          className="grid grid-cols-1 md:grid-cols-3 gap-8"
+          className={`${gridLayoutClass} gap-6 sm:gap-8 items-stretch`}
           variants={staggerContainer}
           initial="initial"
           animate="animate"
@@ -59,93 +96,81 @@ export default function Blogs({ data }: { data: any }) {
           {blogsToRender.map((blog: any) => (
             <motion.article
               key={blog.slug}
-              className="bg-white dark:bg-dark dark:border dark:border-tag-border rounded-lg shadow-md overflow-hidden flex flex-col"
+              className="group relative flex flex-col justify-between rounded-2xl bg-gradient-to-b from-slate-900/90 via-slate-900/60 to-slate-950 border border-slate-800/80 hover:border-primary/50 overflow-hidden shadow-xl hover:shadow-[0_0_30px_rgba(78,128,247,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 h-full"
               variants={fadeInUp}
               {...cardHoverSmall}
             >
-              {/* Feature Image */}
-              <div className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-800">
-                <img
-                  src={resolveImageUrl(blog.feature_image)}
-                  alt={blog.title}
-                  className="object-cover w-full h-full hover:scale-105 transition-transform duration-500"
-                />
+              {/* Subtle hover background sheen */}
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+
+              <div>
+                {/* Feature Image */}
+                <Link
+                  href={`/blog/${blog.slug}`}
+                  className="block relative aspect-video w-full overflow-hidden bg-slate-950/80 border-b border-slate-800/60"
+                >
+                  <img
+                    src={resolveImageUrl(blog.feature_image)}
+                    alt={blog.title}
+                    className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+                  />
+                </Link>
+
+                <div className="p-5">
+                  <Link href={`/blog/${blog.slug}`}>
+                    <h3 className="text-lg font-bold text-white group-hover:text-sky-300 transition-colors line-clamp-2 min-h-[3.25rem] mb-2 leading-snug">
+                      {blog.title}
+                    </h3>
+                  </Link>
+
+                  <p className="text-xs text-slate-400 leading-relaxed line-clamp-2 min-h-[2.5rem] mb-4">
+                    {blog.excerpt}
+                  </p>
+                </div>
               </div>
 
-              <div className="p-6 flex-1 flex flex-col justify-between">
-                <div>
-                  <Link href={`/blog/${blog.slug}`}>
-                    <motion.h3
-                      className="text-xl font-semibold mb-2 hover:text-primary transition-colors line-clamp-2 min-h-[3rem]"
-                      whileHover={{ x: 5 }}
-                      transition={{ type: "spring", stiffness: 300 }}
-                    >
-                      {blog.title}
-                    </motion.h3>
-                  </Link>
-                  <motion.p
-                    className="text-gray-600 dark:text-description mb-4 line-clamp-3"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    {blog.excerpt}
-                  </motion.p>
-                </div>
-                <motion.div
-                  className="flex flex-wrap items-center gap-4 text-xs text-slate-400 pt-4 border-t border-gray-100 dark:border-gray-800"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                >
-                  <motion.span
-                    className="flex items-center gap-1"
-                    whileHover={{ scale: 1.05 }}
-                  >
-                    <FaCalendarAlt className="h-3.5 w-3.5" />
+              {/* Card Footer Metadata */}
+              <div className="px-5 pb-5 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2 mt-auto">
+                <div className="flex items-center gap-3">
+                  <span className="flex items-center gap-1.5">
+                    <FaCalendarAlt className="h-3 w-3 text-sky-400/80" />
                     <span>{new Date(blog.date).toLocaleDateString()}</span>
-                  </motion.span>
-                  <motion.span
-                    className="flex items-center gap-1"
-                    whileHover={{ scale: 1.05 }}
-                  >
-                    <FaClock className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <FaClock className="h-3 w-3 text-slate-500" />
                     <span>{blog.readTime}</span>
-                  </motion.span>
-                  <motion.span
-                    className="flex items-center gap-1"
-                    whileHover={{ scale: 1.05 }}
-                  >
-                    <span>👁️</span>
-                    <span>{blog.views || 0} views</span>
-                  </motion.span>
-                  <motion.span
-                    className="flex items-center gap-1"
-                    whileHover={{ scale: 1.05 }}
-                  >
-                    <span>❤️</span>
-                    <span>{blog.likes || 0} likes</span>
-                  </motion.span>
-                </motion.div>
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2.5">
+                  <span className="flex items-center gap-1">
+                    <FaEye className="h-3 w-3 text-slate-500" />
+                    <span>{blog.views}</span>
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <FaHeart className="h-3 w-3 text-rose-500" />
+                    <span>{blog.likes}</span>
+                  </span>
+                </div>
               </div>
             </motion.article>
           ))}
         </motion.div>
 
+        {/* Modern Action Button - Theme Aligned */}
         <motion.div
-          className="text-center mt-12"
+          className="text-center mt-14"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.3 }}
         >
-          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-            <Link
-              href="/blog"
-              className="inline-block bg-primary text-white px-8 py-3 rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              View All Posts
-            </Link>
-          </motion.div>
+          <Link
+            href="/blog"
+            className="group inline-flex items-center gap-3 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-primary/15 via-blue-600/15 to-indigo-600/15 hover:from-primary/25 hover:to-indigo-600/25 border border-primary/30 hover:border-sky-400 text-white font-semibold text-sm shadow-[0_0_25px_rgba(78,128,247,0.15)] hover:shadow-[0_0_35px_rgba(78,128,247,0.28)] transition-all duration-300 hover:-translate-y-0.5 cursor-pointer backdrop-blur-md"
+          >
+            <span>Read All Articles</span>
+            <FaArrowRight className="text-xs text-sky-400 group-hover:translate-x-1 transition-transform duration-300" />
+          </Link>
         </motion.div>
       </div>
     </section>

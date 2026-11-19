@@ -1,4 +1,0 @@
-
-Warning: PHP Startup: Unable to load dynamic library 'curl' (tried: ext\curl (The specified module could not be found), ext\php_curl.dll (The specified module could not be found)) in Unknown on line 0
-
-Parse error: syntax error, unexpected token "=", expecting end of file in Command line code on line 1

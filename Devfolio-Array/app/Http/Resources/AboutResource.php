@@ -25,7 +25,7 @@ class AboutResource extends JsonResource
             'cv_qa_url'   => $this->getFirstMediaUrl('qa_cv'),
             'backend_cv_url' => $this->getFirstMediaUrl('backend_cv'),
             'qa_cv_url'   => $this->getFirstMediaUrl('qa_cv'),
-            'updated_at'  => $this->updated_at->format('Y-m-d'),
+            'updated_at'  => $this->updated_at?->format('Y-m-d'),
         ];
     }
 }

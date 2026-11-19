@@ -14,9 +14,9 @@ class ProfileController extends Controller
 
     public function index(): JsonResponse
     {
-        $profile = Profile::latest()->firstOrFail();
+        $profile = Profile::latest()->first();
         return $this->successResponse(
-            new ProfileResource($profile),
+            $profile ? new ProfileResource($profile) : null,
             __('messages.profile_retrieved'),
             200
         );
@@ -24,16 +24,23 @@ class ProfileController extends Controller
 
     public function store(ProfileRequest $request): JsonResponse
     {
-        $profile = Profile::create($request->validated());
+        // Enforce singleton profile pattern
+        $profile = Profile::latest()->first();
+        if ($profile) {
+            $profile->update($request->validated());
+        } else {
+            $profile = Profile::create($request->validated());
+        }
 
         if ($request->hasFile('image')) {
+            $profile->clearMediaCollection('profile_images');
             $profile->addMediaFromRequest('image')->toMediaCollection('profile_images');
         }
 
         return $this->successResponse(
             new ProfileResource($profile),
-            __('messages.profile_created'),
-            201
+            __('messages.profile_saved'),
+            200
         );
     }
 

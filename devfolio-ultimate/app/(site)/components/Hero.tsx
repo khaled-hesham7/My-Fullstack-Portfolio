@@ -324,8 +324,14 @@ export default function Hero({ data }: { data: any }) {
               {...fadeInUp}
               transition={{ delay: 0.55 }}
             >
-              {data?.SocialLink && data.SocialLink.length > 0 ? (
-                data.SocialLink.map((link: any) => {
+              {(() => {
+                const links = Array.isArray(data?.SocialLink)
+                  ? data.SocialLink
+                  : Array.isArray(data?.social_links)
+                  ? data.social_links
+                  : data?.SocialLink?.data || data?.social_links?.data || [];
+                if (!links || links.length === 0) return null;
+                return links.map((link: any) => {
                   const Icon = getSocialIcon(link.platform);
                   return (
                     <motion.a
@@ -340,8 +346,8 @@ export default function Hero({ data }: { data: any }) {
                       <Icon />
                     </motion.a>
                   );
-                })
-              ) : null}
+                });
+              })()}
             </motion.div>
 
           </div>

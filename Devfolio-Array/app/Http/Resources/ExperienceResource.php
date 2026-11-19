@@ -16,6 +16,7 @@ class ExperienceResource extends JsonResource
     {
        return [
         'id'        => $this->id,
+        'type'      => $this->type ?? 'Job',
         'job_title' => $this->job_title,
         'company'   => $this->company,
         'location'  => $this->location,

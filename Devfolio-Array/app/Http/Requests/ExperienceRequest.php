@@ -14,6 +14,7 @@ class ExperienceRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'type'      => 'nullable|string|max:50',
             'job_title' => 'required|string|max:255',
             'company'   => 'nullable|string|max:255',
             'location'  => 'nullable|string|max:255',

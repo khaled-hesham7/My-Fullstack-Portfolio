@@ -1,12 +1,36 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Modal } from "../../../components/ui/modal";
-import { Table, TableHeader, TableBody, TableRow, TableCell } from "../../../components/ui/table";
-import Button from "../../../components/ui/button/Button";
-import Label from "../../../components/form/Label";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableCell,
+} from "../../../components/ui/table";
 import Image from "next/image";
 import { resolveImageUrl, getApiBaseUrl } from "@/lib/utils";
+import {
+  PencilSquareIcon,
+  TrashIcon,
+  EyeIcon,
+  LanguageIcon,
+  PlusIcon,
+  SparklesIcon,
+  ArrowUpIcon,
+  ArrowDownIcon,
+  DocumentDuplicateIcon,
+  PhotoIcon,
+  VideoCameraIcon,
+  CodeBracketIcon,
+  CheckIcon,
+  XMarkIcon,
+  MagnifyingGlassIcon,
+  BookOpenIcon,
+  CodeBracketSquareIcon,
+  HeartIcon,
+} from "@heroicons/react/24/outline";
 
 interface ContentBlock {
   title: string;
@@ -20,54 +44,17 @@ interface ContentBlock {
 
 interface ArticleItem {
   id: number;
-  title: string; // returns translated or title_en depending on lang, wait!
-  // Let's check our resources: ArticleResource returns 'title' (which is title_en or title_ar based on headers).
-  // But wait, in our admin panel, we can look up the original fields if we fetch the article or get it.
-  // Wait, let's see how index returns it. In ArticleResource:
-  // 'title' => $title, 'excerpt' => $excerpt, etc.
-  // Wait! Does the index call return the raw 'title_en' or 'title_ar' in the response?
-  // Let's check ArticleResource.php line 28-59 again:
-  // It returns title, excerpt, feature_image, feature_video, tags, date, content.
-  // But wait, in the update action, it validates:
-  // 'title_en' => 'sometimes|required', 'title_ar' => 'sometimes|required'
-  // How do we edit if index doesn't return title_en or title_ar raw?
-  // Wait! In the index action (ArticleController.php line 134-159):
-  // It returns ArticleResource::collection($articles).
-  // If we fetch the single article via `GET /api/articles/{id}` in show:
-  // It returns `new ArticleResource($article)`.
-  // Wait! Does ArticleResource return title_en/title_ar or raw fields?
-  // Let's check ArticleResource.php again. It does NOT return title_en/title_ar in the array returned.
-  // Oh! It only returns the translated 'title' and 'excerpt' based on Accept-Language header.
-  // Wait, but what if the admin needs to see the raw title_en and title_ar to edit them?
-  // If the resource doesn't return title_en and title_ar, how can the admin edit them?
-  // Wait, is it possible that the models database fields title_en and title_ar are accessible if we read the model directly?
-  // Yes! If we call `GET /api/articles/{id}` directly, the backend returns the resource. But wait, since ArticleResource is used, it only returns the translated keys.
-  // Wait! Let's check if the admin controller returns raw fields elsewhere, or if we can pass a header `Accept-Language: en` to get the English title, and `Accept-Language: ar` to get the Arabic title!
-  // Yes! We can pass headers to retrieve the English or Arabic versions, OR we can generate a slug or check the response.
-  // Let's see: if we fetch with `Accept-Language: en` header, the returned `title` will be `title_en`, and `excerpt` will be `excerpt_en`!
-  // And if we fetch with `Accept-Language: ar` header, the returned `title` will be `title_ar`, and `excerpt` will be `excerpt_ar`!
-  // That is a brilliant way to leverage the existing ArticleResource translations logic!
-  // Wait, does the database table actually store `title_en` and `title_ar` as raw fields? Yes, we saw that in `Article.php` model.
-  // What about `content_en` and `content_ar`? In ArticleResource.php, it returns `content` which maps the requested language content blocks.
-  // So if we fetch the article detail via `GET /api/articles/{id}` with `Accept-Language: en`, we will get the English title, excerpt, and content blocks!
-  // And if we fetch it with `Accept-Language: ar`, we will get the Arabic title, excerpt, and content blocks!
-  // This is a highly intelligent insight! Let's implement a double-fetch or a show detail fetch when the user clicks "Edit" or "Translate" so we can pre-fill the form with exact languages cleanly.
-  // Wait, let's verify if the show method takes headers. Yes, `$lang = $request->header('Accept-Language', 'en');` is evaluated in ArticleResource.php!
-  // Let's write a robust fetcher for editing:
-  // When editing, we can fetch the article twice (or check if it's already translated):
-  // 1. Fetch with Accept-Language: en to get English fields (`title_en_val`, `excerpt_en_val`, `content_en_val`).
-  // 2. Fetch with Accept-Language: ar to get Arabic fields (`title_ar_val`, `excerpt_ar_val`, `content_ar_val`).
-  // This is simple, requires no modifications to the backend, and is extremely robust!
-}
-
-interface ArticleItem {
-  id: number;
-  title: string; // Mapped translated title
-  excerpt: string; // Mapped translated excerpt
+  title: string;
+  excerpt: string;
+  title_en?: string;
+  title_ar?: string;
+  excerpt_en?: string;
+  excerpt_ar?: string;
   feature_image: string | null;
   feature_video: string | null;
   tags: string[];
   is_featured: boolean;
+  category?: "technical" | "personal";
   stats: {
     views: number;
     likes: number;
@@ -101,33 +88,44 @@ export default function AdminArticlesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [token, setToken] = useState<string | null>(null);
 
+  // Filters & Search
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeFilter, setActiveFilter] = useState<
+    "all" | "technical" | "personal" | "featured"
+  >("all");
+
   // Modals state
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isTranslateModalOpen, setIsTranslateModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [modalLoading, setModalLoading] = useState(false);
-  const [activeFormTab, setActiveFormTab] = useState<'en' | 'ar'>('en');
+  const [activeFormTab, setActiveFormTab] = useState<"en" | "ar">("en");
+  const [formLoading, setFormLoading] = useState(false);
 
-  // English fields (stored in base article)
+  // Form Fields
   const [titleEn, setTitleEn] = useState("");
   const [excerptEn, setExcerptEn] = useState("");
+  const [titleAr, setTitleAr] = useState("");
+  const [excerptAr, setExcerptAr] = useState("");
   const [tags, setTags] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
+  const [category, setCategory] = useState<"technical" | "personal">("technical");
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
-  const [blocksEn, setBlocksEn] = useState<ContentBlock[]>([{ title: "", text: "", code: "" }]);
+  const [blocksEn, setBlocksEn] = useState<ContentBlock[]>([
+    { title: "", text: "", code: "", images: [], videos: [], newImages: [], newVideos: [] },
+  ]);
+  const [blocksAr, setBlocksAr] = useState<Array<{ title: string; text: string }>>([
+    { title: "", text: "" },
+  ]);
 
-  // Arabic fields (translations)
-  const [titleAr, setTitleAr] = useState("");
-  const [excerptAr, setExcerptAr] = useState("");
-  const [blocksAr, setBlocksAr] = useState<Array<{ title: string; text: string }>>([]);
-
-  // Error and Loading states
+  // Errors & notifications
   const [errors, setErrors] = useState<Record<string, string[]>>({});
   const [globalError, setGlobalError] = useState("");
+  const [successToast, setSuccessToast] = useState("");
 
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -139,12 +137,16 @@ export default function AdminArticlesPage() {
     }
   }, []);
 
+  const showToast = (msg: string) => {
+    setSuccessToast(msg);
+    setTimeout(() => setSuccessToast(""), 4000);
+  };
+
   const fetchArticles = async (page: number) => {
     setIsLoading(true);
     setGlobalError("");
     try {
       const apiBase = getApiBaseUrl();
-      // Fetch with English language header to display default lists in English
       const response = await fetch(`${apiBase}/articles?page=${page}`, {
         headers: {
           Accept: "application/json",
@@ -179,29 +181,63 @@ export default function AdminArticlesPage() {
     fetchArticles(currentPage);
   }, [currentPage]);
 
-  // Open creation modal
+  // Metrics summary
+  const metrics = useMemo(() => {
+    const total = articles.length;
+    const tech = articles.filter((a) => a.category !== "personal").length;
+    const personal = articles.filter((a) => a.category === "personal").length;
+    const featured = articles.filter((a) => a.is_featured).length;
+    const views = articles.reduce((sum, a) => sum + (a.stats?.views || 0), 0);
+    const likes = articles.reduce((sum, a) => sum + (a.stats?.likes || 0), 0);
+    return { total, tech, personal, featured, views, likes };
+  }, [articles]);
+
+  // Filtered & Searched articles
+  const filteredArticles = useMemo(() => {
+    return articles.filter((art) => {
+      // Category filter
+      if (activeFilter === "technical" && art.category === "personal") return false;
+      if (activeFilter === "personal" && art.category !== "personal") return false;
+      if (activeFilter === "featured" && !art.is_featured) return false;
+
+      // Search query
+      if (searchQuery.trim()) {
+        const query = searchQuery.toLowerCase();
+        const matchTitle = art.title?.toLowerCase().includes(query);
+        const matchExcerpt = art.excerpt?.toLowerCase().includes(query);
+        const matchTags = art.tags?.some((t) => t.toLowerCase().includes(query));
+        if (!matchTitle && !matchExcerpt && !matchTags) return false;
+      }
+
+      return true;
+    });
+  }, [articles, activeFilter, searchQuery]);
+
+  // Modal open helpers
   const openCreateModal = () => {
     setIsEditing(false);
     setEditingId(null);
     setTitleEn("");
     setExcerptEn("");
+    setTitleAr("");
+    setExcerptAr("");
     setTags("");
     setIsFeatured(false);
+    setCategory("technical");
     setSelectedImage(null);
     setImagePreviewUrl(null);
     setSelectedVideo(null);
     setVideoPreviewUrl(null);
-    setBlocksEn([{ title: "", text: "", code: "", images: [], videos: [], newImages: [], newVideos: [] }]);
+    setBlocksEn([
+      { title: "", text: "", code: "", images: [], videos: [], newImages: [], newVideos: [] },
+    ]);
     setBlocksAr([{ title: "", text: "" }]);
-    setTitleAr("");
-    setExcerptAr("");
     setActiveFormTab("en");
     setErrors({});
     setGlobalError("");
     setIsFormModalOpen(true);
   };
 
-  // Open Edit Modal - fetches English and Arabic representations recursively
   const openEditModal = async (articleId: number) => {
     setIsEditing(true);
     setEditingId(articleId);
@@ -213,8 +249,8 @@ export default function AdminArticlesPage() {
 
     try {
       const apiBase = getApiBaseUrl();
-      
-      // 1. Fetch English details
+
+      // Fetch English representation
       const resEn = await fetch(`${apiBase}/articles/${articleId}`, {
         headers: {
           Accept: "application/json",
@@ -225,7 +261,7 @@ export default function AdminArticlesPage() {
       const payloadEn = await resEn.json();
       const artEn = payloadEn.data;
 
-      // 2. Fetch Arabic details
+      // Fetch Arabic representation
       const resAr = await fetch(`${apiBase}/articles/${articleId}`, {
         headers: {
           Accept: "application/json",
@@ -236,40 +272,39 @@ export default function AdminArticlesPage() {
       const payloadAr = await resAr.json();
       const artAr = payloadAr.data;
 
-      // Prefill English
-      setTitleEn(artEn.title || "");
-      setExcerptEn(artEn.excerpt || "");
+      setTitleEn(artEn.title_en || artEn.title || "");
+      setExcerptEn(artEn.excerpt_en || artEn.excerpt || "");
+      setTitleAr(artAr.title_ar || artAr.title || "");
+      setExcerptAr(artAr.excerpt_ar || artAr.excerpt || "");
+
       setTags(artEn.tags ? artEn.tags.join(", ") : "");
       setImagePreviewUrl(artEn.feature_image);
       setVideoPreviewUrl(artEn.feature_video);
       setIsFeatured(artEn.is_featured || false);
+      setCategory(artEn.category === "personal" ? "personal" : "technical");
       setSelectedImage(null);
       setSelectedVideo(null);
 
       const mappedBlocksEn = artEn.content
         ? artEn.content.map((b: any) => ({
-            title: b.title || "",
-            text: b.text || "",
-            code: b.code || "",
-            images: b.images || [],
-            videos: b.videos || [],
-            newImages: [],
-            newVideos: [],
-          }))
+          title: b.title || "",
+          text: b.text || "",
+          code: b.code || "",
+          images: b.images || [],
+          videos: b.videos || [],
+          newImages: [],
+          newVideos: [],
+        }))
         : [{ title: "", text: "", code: "", images: [], videos: [], newImages: [], newVideos: [] }];
       setBlocksEn(mappedBlocksEn);
 
-      // Prefill Arabic
-      setTitleAr(artAr.title || "");
-      setExcerptAr(artAr.excerpt || "");
       const mappedBlocksAr = artAr.content
         ? artAr.content.map((b: any) => ({
-            title: b.title || "",
-            text: b.text || "",
-          }))
+          title: b.title || "",
+          text: b.text || "",
+        }))
         : [];
       setBlocksAr(mappedBlocksAr);
-
     } catch (err: any) {
       console.error("Failed to load edit states:", err);
       setGlobalError("Failed to fetch article details from backend.");
@@ -278,30 +313,25 @@ export default function AdminArticlesPage() {
     }
   };
 
-  // Open Translation Modal
   const openTranslateModal = async (articleId: number) => {
     setEditingId(articleId);
     setErrors({});
     setGlobalError("");
     setIsTranslateModalOpen(true);
     setModalLoading(true);
-    setActiveFormTab("en");
 
     try {
       const apiBase = getApiBaseUrl();
-      
-      // Fetch English blocks to map indexes
       const resEn = await fetch(`${apiBase}/articles/${articleId}`, {
         headers: {
           Accept: "application/json",
           "Accept-Language": "en",
         },
       });
-      if (!resEn.ok) throw new Error("Failed to load English details");
+      if (!resEn.ok) throw new Error("Failed to load base details");
       const payloadEn = await resEn.json();
       const artEn = payloadEn.data;
 
-      // Fetch existing Arabic details if any
       const resAr = await fetch(`${apiBase}/articles/${articleId}`, {
         headers: {
           Accept: "application/json",
@@ -311,38 +341,43 @@ export default function AdminArticlesPage() {
       const payloadAr = resAr.ok ? await resAr.json() : null;
       const artAr = payloadAr?.data;
 
-      setTitleAr(artAr?.title || "");
-      setExcerptAr(artAr?.excerpt || "");
+      setTitleAr(artAr?.title_ar || artAr?.title || "");
+      setExcerptAr(artAr?.excerpt_ar || artAr?.excerpt || "");
 
-      // Loop English blocks to form structure
-      const mappedBlocksEn = artEn.content || [];
-      const initializedBlocksAr = mappedBlocksEn.map((b: any, idx: number) => {
-        // If there's already an Arabic translation for this block index, prefill it
-        const existingAr = artAr?.content?.[idx];
-        return {
-          title: existingAr?.title || "",
-          text: existingAr?.text || "",
-        };
-      });
+      const mappedBlocksEn = artEn.content
+        ? artEn.content.map((b: any) => ({
+          title: b.title || "",
+          text: b.text || "",
+          code: b.code || "",
+          images: b.images || [],
+          videos: b.videos || [],
+          newImages: [],
+          newVideos: [],
+        }))
+        : [];
+      setBlocksEn(mappedBlocksEn);
 
-      setBlocksEn(mappedBlocksEn.map((b: any) => ({
-        title: b.title || "",
-        text: b.text || "",
-        code: b.code || "",
-      })));
-      setBlocksAr(initializedBlocksAr);
-
+      const mappedBlocksAr = artAr?.content
+        ? artAr.content.map((b: any) => ({
+          title: b.title || "",
+          text: b.text || "",
+        }))
+        : mappedBlocksEn.map(() => ({ title: "", text: "" }));
+      setBlocksAr(mappedBlocksAr);
     } catch (err: any) {
-      console.error("Failed to initialize translation:", err);
-      setGlobalError("Could not retrieve base article content.");
+      console.error("Failed to load translation data:", err);
+      setGlobalError("Could not retrieve article translation information.");
     } finally {
       setModalLoading(false);
     }
   };
 
-  // Content Blocks management
+  // Block management
   const addBlock = () => {
-    setBlocksEn([...blocksEn, { title: "", text: "", code: "", images: [], videos: [], newImages: [], newVideos: [] }]);
+    setBlocksEn([
+      ...blocksEn,
+      { title: "", text: "", code: "", images: [], videos: [], newImages: [], newVideos: [] },
+    ]);
     setBlocksAr([...blocksAr, { title: "", text: "" }]);
   };
 
@@ -472,35 +507,18 @@ export default function AdminArticlesPage() {
     );
   };
 
-  const getMediaIdentifier = (url: string) => {
-    const match = url.match(/\/storage\/(\d+)\//);
-    if (match && match[1]) {
-      return match[1];
-    }
-    return url;
-  };
-
   const handleRemoveServerFile = async (
     blockIndex: number,
     type: "images" | "videos",
     url: string
   ) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete this ${
-          type === "images" ? "image" : "video"
-        } from the server?`
-      )
-    ) {
-      return;
-    }
+    if (!window.confirm(`Are you sure you want to delete this media item?`)) return;
 
     try {
-      const identifier = getMediaIdentifier(url);
       const activeToken = token || localStorage.getItem("admin_token");
       const apiBase = getApiBaseUrl();
 
-      const response = await fetch(`${apiBase}/media/${encodeURIComponent(identifier)}`, {
+      const response = await fetch(`${apiBase}/media/${encodeURIComponent(url)}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${activeToken}`,
@@ -512,34 +530,32 @@ export default function AdminArticlesPage() {
         throw new Error("Failed to delete file from server");
       }
 
-      const payload = await response.json();
-      if (payload.success) {
-        setBlocksEn((prev) =>
-          prev.map((b, bIdx) => {
-            if (bIdx === blockIndex) {
-              if (type === "images") {
-                return {
-                  ...b,
-                  images: (b.images || []).filter((itemUrl) => itemUrl !== url),
-                };
-              } else {
-                return {
-                  ...b,
-                  videos: (b.videos || []).filter((itemUrl) => itemUrl !== url),
-                };
-              }
+      setBlocksEn((prev) =>
+        prev.map((b, bIdx) => {
+          if (bIdx === blockIndex) {
+            if (type === "images") {
+              return {
+                ...b,
+                images: (b.images || []).filter((itemUrl) => itemUrl !== url),
+              };
+            } else {
+              return {
+                ...b,
+                videos: (b.videos || []).filter((itemUrl) => itemUrl !== url),
+              };
             }
-            return b;
-          })
-        );
-      }
+          }
+          return b;
+        })
+      );
+      showToast("Media file removed.");
     } catch (err: any) {
       console.error("Delete server file failed:", err);
       alert(err.message || "Failed to delete file.");
     }
   };
 
-  // Submit English/Base edit form
+  // Submit Main Article Form
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -548,9 +564,24 @@ export default function AdminArticlesPage() {
 
     try {
       const formDataObj = new FormData();
-      formDataObj.append("title_en", titleEn);
-      formDataObj.append("excerpt_en", excerptEn);
+
+      // Graceful bi-directional fallback: neither English nor Arabic is forced
+      const cleanTitleEn = titleEn.trim();
+      const cleanTitleAr = titleAr.trim();
+      const finalTitleEn = cleanTitleEn || cleanTitleAr || "Untitled Article";
+      const finalTitleAr = cleanTitleAr || cleanTitleEn || "مقال جديد";
+
+      const cleanExcerptEn = excerptEn.trim();
+      const cleanExcerptAr = excerptAr.trim();
+      const finalExcerptEn = cleanExcerptEn || cleanExcerptAr || "";
+      const finalExcerptAr = cleanExcerptAr || cleanExcerptEn || "";
+
+      formDataObj.append("title_en", finalTitleEn);
+      formDataObj.append("excerpt_en", finalExcerptEn);
+      formDataObj.append("title_ar", finalTitleAr);
+      formDataObj.append("excerpt_ar", finalExcerptAr);
       formDataObj.append("is_featured", isFeatured ? "1" : "0");
+      formDataObj.append("category", category);
 
       // Parse tags
       const tagsArray = tags
@@ -567,26 +598,22 @@ export default function AdminArticlesPage() {
         formDataObj.append(`blocks[${idx}][text]`, block.text);
         formDataObj.append(`blocks[${idx}][code]`, block.code);
 
-        // Send existing image URLs to retain them
         if (block.images && block.images.length > 0) {
           block.images.forEach((imgUrl) => {
             formDataObj.append(`blocks[${idx}][images][]`, imgUrl);
           });
         }
-        // Send new raw images files for upload
         if (block.newImages && block.newImages.length > 0) {
           block.newImages.forEach((file) => {
             formDataObj.append(`blocks[${idx}][images][]`, file);
           });
         }
 
-        // Send existing video URLs to retain them
         if (block.videos && block.videos.length > 0) {
           block.videos.forEach((vidUrl) => {
             formDataObj.append(`blocks[${idx}][videos][]`, vidUrl);
           });
         }
-        // Send new raw videos files for upload
         if (block.newVideos && block.newVideos.length > 0) {
           block.newVideos.forEach((file) => {
             formDataObj.append(`blocks[${idx}][videos][]`, file);
@@ -601,22 +628,20 @@ export default function AdminArticlesPage() {
         formDataObj.append("feature_video", selectedVideo);
       }
 
-      const activeToken = token || localStorage.getItem("admin_token");
-      const apiBase = getApiBaseUrl();
-
-      formDataObj.append("title_ar", titleAr || "");
-      formDataObj.append("excerpt_ar", excerptAr || "");
       blocksAr.forEach((block, idx) => {
         formDataObj.append(`content_ar[${idx}][title]`, block.title || "");
         formDataObj.append(`content_ar[${idx}][text]`, block.text || "");
       });
+
+      const activeToken = token || localStorage.getItem("admin_token");
+      const apiBase = getApiBaseUrl();
 
       const url = isEditing
         ? `${apiBase}/articles/${editingId}`
         : `${apiBase}/articles`;
 
       const response = await fetch(url, {
-        method: "POST", // POST is used for both Store and Update due to multipart image limitations in PUT
+        method: "POST",
         headers: {
           Authorization: `Bearer ${activeToken}`,
           Accept: "application/json",
@@ -631,24 +656,21 @@ export default function AdminArticlesPage() {
           setGlobalError(errData.message || "Please check validation errors.");
           return;
         }
-        if (response.status === 401) {
-          setGlobalError("Session expired (401). Please log in again to save.");
-          return;
-        }
         throw new Error(errData.message || `Server returned status ${response.status}`);
       }
 
       setIsFormModalOpen(false);
       fetchArticles(currentPage);
+      showToast(isEditing ? "Article updated successfully!" : "Article published successfully!");
     } catch (err: any) {
-      console.error("Form submit error:", err);
-      setGlobalError(err.message || "An unexpected error occurred.");
+      console.error("Submit error:", err);
+      setGlobalError(err.message || "An unexpected error occurred while saving.");
     } finally {
       setFormLoading(false);
     }
   };
 
-  // Submit Translation
+  // Submit Arabic Translation
   const handleTranslateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
@@ -659,25 +681,30 @@ export default function AdminArticlesPage() {
       const activeToken = token || localStorage.getItem("admin_token");
       const apiBase = getApiBaseUrl();
 
+      const payload = {
+        title_ar: titleAr.trim(),
+        excerpt_ar: excerptAr.trim(),
+        content_ar: blocksAr.map((block) => ({
+          title: block.title || null,
+          text: block.text || null,
+        })),
+      };
+
       const response = await fetch(`${apiBase}/articles/${editingId}/translate`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${activeToken}`,
-          Accept: "application/json",
           "Content-Type": "application/json",
+          Accept: "application/json",
         },
-        body: JSON.stringify({
-          title_ar: titleAr,
-          excerpt_ar: excerptAr,
-          content_ar: blocksAr,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
         if (response.status === 422) {
-          const errData = await response.json();
           setErrors(errData.errors || {});
-          setGlobalError(errData.message || "Please check validation errors.");
+          setGlobalError(errData.message || "Please check Arabic validation errors.");
           return;
         }
         throw new Error("Failed to submit translation.");
@@ -685,6 +712,7 @@ export default function AdminArticlesPage() {
 
       setIsTranslateModalOpen(false);
       fetchArticles(currentPage);
+      showToast("Arabic translation linked successfully!");
     } catch (err: any) {
       console.error("Translation submit error:", err);
       setGlobalError(err.message || "An unexpected error occurred.");
@@ -695,7 +723,7 @@ export default function AdminArticlesPage() {
 
   // Delete Action
   const handleDelete = async (id: number) => {
-    if (!window.confirm("Are you sure you want to delete this article?")) return;
+    if (!window.confirm("Are you sure you want to permanently delete this article?")) return;
 
     try {
       const apiBase = getApiBaseUrl();
@@ -714,6 +742,7 @@ export default function AdminArticlesPage() {
 
       const payload = await response.json();
       if (payload.success) {
+        showToast("Article deleted.");
         if (articles.length === 1 && currentPage > 1) {
           setCurrentPage(currentPage - 1);
         } else {
@@ -726,284 +755,758 @@ export default function AdminArticlesPage() {
     }
   };
 
-  const [formLoading, setFormLoading] = useState(false);
+  // Render tag chips preview
+  const tagsList = tags
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 p-6 shadow-theme-xs">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div>
-          <h2 className="text-xl font-bold text-gray-800 dark:text-white/90">
-            Blogs & Articles Management
-          </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Create dynamic English posts, add Arabic translations, and manage blog items.
-          </p>
-        </div>
-        <Button size="sm" onClick={openCreateModal} className="flex items-center gap-2">
-          <span>Add Article</span>
-        </Button>
-      </div>
-
-      {globalError && (
-        <div className="mb-4 p-3 bg-red-50 text-red-600 border border-red-200 rounded-lg text-sm">
-          {globalError}
+    <div className="space-y-8 animate-in fade-in duration-300">
+      {/* Toast Notification */}
+      {successToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-emerald-500 text-white px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 text-sm font-semibold animate-in slide-in-from-bottom-5">
+          <CheckIcon className="w-5 h-5" />
+          <span>{successToast}</span>
         </div>
       )}
 
-      {/* Articles Table */}
-      <div className="overflow-x-auto w-full">
-        <Table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800">
-          <TableHeader className="bg-gray-50 dark:bg-gray-800/40">
-            <TableRow>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Preview
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Title (EN)
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Excerpt
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Stats
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Tags
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Featured
-              </TableCell>
-              <TableCell isHeader className="px-4 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider dark:text-gray-400">
-                Actions
-              </TableCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody className="divide-y divide-gray-100 dark:divide-gray-800 bg-transparent">
-            {isLoading ? (
-              <TableRow>
-                <TableCell className="px-4 py-8 text-center text-gray-500 dark:text-gray-400" colSpan={6}>
-                  <div className="flex justify-center items-center gap-2">
-                    <span className="w-5 h-5 rounded-full border-2 border-primary border-t-transparent animate-spin"></span>
-                    <span>Loading articles...</span>
-                  </div>
+      {/* Top Header & Action */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pb-6 border-b border-slate-800/80">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="px-2.5 py-0.5 text-xs font-semibold rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              Content Studio
+            </span>
+            <span className="text-xs text-slate-500">•</span>
+            <span className="text-xs text-slate-400">Knowledge Base & Articles</span>
+          </div>
+          <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+            <span>Articles Management</span>
+            <span className="text-2xl">✍️</span>
+          </h1>
+          <p className="text-slate-400 text-sm mt-1 max-w-xl">
+            Author high-impact technical tutorials and personal reflections with bilingual blocks, multimedia, and instant SEO readiness.
+          </p>
+        </div>
+
+        <button
+          onClick={openCreateModal}
+          className="group relative inline-flex items-center gap-2.5 px-6 py-3 rounded-xl font-semibold text-sm text-white bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 shadow-[0_4px_25px_rgba(6,182,212,0.35)] hover:shadow-[0_4px_30px_rgba(6,182,212,0.5)] transition-all duration-300 cursor-pointer active:scale-95"
+        >
+          <PlusIcon className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" />
+          <span>Write New Article</span>
+        </button>
+      </div>
+
+      {/* Analytics Metric Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* Total Card */}
+        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md relative overflow-hidden group hover:border-slate-700/80 transition-all">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Total Posts</p>
+              <h3 className="text-2xl font-bold text-white mt-1">{metrics.total}</h3>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+              <BookOpenIcon className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-3 text-[11px] text-slate-500">
+            {meta?.total || metrics.total} published in database
+          </div>
+        </div>
+
+        {/* Technical Card */}
+        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md relative overflow-hidden group hover:border-cyan-500/30 transition-all">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-cyan-400">Technical</p>
+              <h3 className="text-2xl font-bold text-white mt-1">{metrics.tech}</h3>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center">
+              <CodeBracketSquareIcon className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-3 text-[11px] text-slate-500">Main public blog feed</div>
+        </div>
+
+        {/* Personal Card */}
+        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md relative overflow-hidden group hover:border-purple-500/30 transition-all">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-purple-400">Personal</p>
+              <h3 className="text-2xl font-bold text-white mt-1">{metrics.personal}</h3>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center">
+              <span>✍️</span>
+            </div>
+          </div>
+          <div className="mt-3 text-[11px] text-slate-500">Dedicated reflections route</div>
+        </div>
+
+        {/* Engagement Card */}
+        <div className="p-5 rounded-2xl bg-slate-900/60 border border-slate-800/80 backdrop-blur-md relative overflow-hidden group hover:border-emerald-500/30 transition-all">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-emerald-400">Total Views</p>
+              <h3 className="text-2xl font-bold text-white mt-1">{metrics.views}</h3>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+              <EyeIcon className="w-5 h-5" />
+            </div>
+          </div>
+          <div className="mt-3 text-[11px] text-slate-500 flex items-center gap-1.5">
+            <HeartIcon className="w-3.5 h-3.5 text-rose-500" />
+            <span>{metrics.likes} community likes</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-900/40 p-3 rounded-2xl border border-slate-800">
+        {/* Segmented Filter Pills */}
+        <div className="flex items-center gap-1.5 w-full sm:w-auto overflow-x-auto">
+          {[
+            { id: "all", label: "All Posts", count: metrics.total },
+            { id: "technical", label: "💻 Technical", count: metrics.tech },
+            { id: "personal", label: "✍️ Personal", count: metrics.personal },
+            { id: "featured", label: "⭐ Featured", count: metrics.featured },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveFilter(tab.id as any)}
+              className={`px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${activeFilter === tab.id
+                  ? "bg-slate-800 text-white shadow-sm border border-slate-700"
+                  : "text-slate-400 hover:text-white hover:bg-slate-850"
+                }`}
+            >
+              <span>{tab.label}</span>
+              <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-950/60 text-slate-400">
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Search Input */}
+        <div className="relative w-full sm:w-72">
+          <MagnifyingGlassIcon className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search by title or tags..."
+            className="w-full bg-slate-950/60 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/10 transition-all"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </div>
+
+      {globalError && (
+        <div className="p-4 bg-red-950/40 border border-red-500/40 text-red-300 rounded-2xl text-xs flex items-center gap-2">
+          <span>⚠️</span>
+          <span>{globalError}</span>
+        </div>
+      )}
+
+      {/* Main Articles Table Card */}
+      <div className="rounded-2xl border border-slate-800/80 bg-slate-900/60 backdrop-blur-xl overflow-hidden shadow-2xl">
+        <div className="overflow-x-auto w-full">
+          <Table className="min-w-full divide-y divide-slate-800">
+            <TableHeader className="bg-slate-950/40">
+              <TableRow className="border-b border-slate-800">
+                <TableCell isHeader className="px-5 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Article
+                </TableCell>
+                <TableCell isHeader className="px-5 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Category
+                </TableCell>
+                <TableCell isHeader className="px-5 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Tags
+                </TableCell>
+                <TableCell isHeader className="px-5 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Engagement
+                </TableCell>
+                <TableCell isHeader className="px-5 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Status
+                </TableCell>
+                <TableCell isHeader className="px-5 py-4 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                  Actions
                 </TableCell>
               </TableRow>
-            ) : articles.length === 0 ? (
-              <TableRow>
-                <TableCell className="px-4 py-8 text-center text-gray-500 dark:text-gray-400" colSpan={6}>
-                  No articles found. Click &quot;Add Article&quot; to publish one.
-                </TableCell>
-              </TableRow>
-            ) : (
-              articles.map((art) => (
-                <TableRow key={art.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/10">
-                  <TableCell className="px-4 py-3">
-                    <div className="relative w-16 h-10 rounded-md overflow-hidden bg-gray-100 dark:bg-gray-800">
-                      {art.feature_image ? (
-                        <Image
-                          src={resolveImageUrl(art.feature_image, "")}
-                          alt={art.title}
-                          fill
-                          className="object-cover"
-                          sizes="64px"
-                        />
-                      ) : (
-                        <span className="flex items-center justify-center h-full text-[10px] text-gray-400">
-                          No Image
-                        </span>
-                      )}
+            </TableHeader>
+
+            <TableBody className="divide-y divide-slate-800/60 bg-transparent">
+              {isLoading ? (
+                <TableRow>
+                  <TableCell className="px-5 py-12 text-center text-slate-400" colSpan={6}>
+                    <div className="flex justify-center items-center gap-2.5">
+                      <span className="w-5 h-5 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin"></span>
+                      <span className="text-sm font-medium">Loading articles stream...</span>
                     </div>
                   </TableCell>
-                  <TableCell className="px-4 py-3 text-sm font-semibold text-gray-800 dark:text-white/90">
-                    {art.title}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400 max-w-[200px] truncate">
-                    {art.excerpt}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    <div className="flex flex-col gap-0.5 text-xs">
-                      <span>👁️ {art.stats?.views || 0} views</span>
-                      <span>❤️ {art.stats?.likes || 0} likes</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm">
-                    <div className="flex flex-wrap gap-1">
-                      {art.tags &&
-                        art.tags.map((tag, idx) => (
-                          <span
-                            key={idx}
-                            className="inline-block px-2 py-0.5 text-[10px] rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-transparent dark:border-gray-700"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                    <span
-                      className={`inline-block px-2.5 py-1 text-xs font-medium rounded-full ${
-                        art.is_featured
-                          ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                          : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400"
-                      }`}
-                    >
-                      {art.is_featured ? "Featured" : "Regular"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-right text-sm font-medium">
-                    <div className="flex justify-end gap-3">
+                </TableRow>
+              ) : filteredArticles.length === 0 ? (
+                <TableRow>
+                  <TableCell className="px-5 py-16 text-center text-slate-400" colSpan={6}>
+                    <div className="max-w-md mx-auto text-center space-y-3">
+                      <div className="text-4xl">📝</div>
+                      <h4 className="text-base font-semibold text-white">No articles found</h4>
+                      <p className="text-xs text-slate-500">
+                        {searchQuery
+                          ? `No matches for "${searchQuery}". Try a different keyword.`
+                          : "You have not published any articles in this section yet."}
+                      </p>
                       <button
-                        onClick={() => window.open(`/blog/${art.id}`, "_blank")}
-                        className="text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer"
+                        onClick={openCreateModal}
+                        className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-xl text-xs font-semibold cursor-pointer"
                       >
-                        View
-                      </button>
-                      <button
-                        onClick={() => openTranslateModal(art.id)}
-                        className="text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
-                      >
-                        Translate
-                      </button>
-                      <button
-                        onClick={() => openEditModal(art.id)}
-                        className="text-primary hover:text-primary/80 transition-colors cursor-pointer"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(art.id)}
-                        className="text-red-500 hover:text-red-400 transition-colors cursor-pointer"
-                      >
-                        Delete
+                        Create your first article
                       </button>
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ) : (
+                filteredArticles.map((art) => (
+                  <TableRow
+                    key={art.id}
+                    className="hover:bg-slate-800/30 transition-colors group"
+                  >
+                    {/* Thumbnail & Title Column */}
+                    <TableCell className="px-5 py-4">
+                      <div className="flex items-center gap-3.5">
+                        <div className="relative w-16 h-12 rounded-xl overflow-hidden bg-slate-950 border border-slate-800 flex-shrink-0 group-hover:border-slate-700 transition-colors">
+                          {art.feature_image ? (
+                            <Image
+                              src={resolveImageUrl(art.feature_image, "")}
+                              alt={art.title || "Article"}
+                              fill
+                              className="object-cover group-hover:scale-105 transition-transform duration-300"
+                              sizes="64px"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-xs text-slate-600">
+                              📷
+                            </div>
+                          )}
+                        </div>
+                        <div className="max-w-xs sm:max-w-sm">
+                          <h4 className="font-semibold text-sm text-white group-hover:text-cyan-400 transition-colors line-clamp-1">
+                            {art.title || "Untitled Article"}
+                          </h4>
+                          <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">
+                            {art.excerpt || "No excerpt provided"}
+                          </p>
+                          <span className="text-[10px] text-slate-500 mt-1 block">
+                            {art.date?.diff || art.date?.raw || "Recently"}
+                          </span>
+                        </div>
+                      </div>
+                    </TableCell>
+
+                    {/* Category Column */}
+                    <TableCell className="px-5 py-4">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full ${art.category === "personal"
+                            ? "bg-purple-950/60 text-purple-300 border border-purple-500/30 shadow-[0_0_12px_rgba(168,85,247,0.15)]"
+                            : "bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 shadow-[0_0_12px_rgba(6,182,212,0.15)]"
+                          }`}
+                      >
+                        <span>{art.category === "personal" ? "✍️" : "💻"}</span>
+                        <span>{art.category === "personal" ? "Personal" : "Technical"}</span>
+                      </span>
+                    </TableCell>
+
+                    {/* Tags Column */}
+                    <TableCell className="px-5 py-4">
+                      <div className="flex flex-wrap gap-1 max-w-[180px]">
+                        {art.tags && art.tags.length > 0 ? (
+                          art.tags.slice(0, 3).map((tag, idx) => (
+                            <span
+                              key={idx}
+                              className="inline-block px-2 py-0.5 text-[10px] rounded-md bg-slate-950/80 text-slate-400 border border-slate-800"
+                            >
+                              {tag}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-slate-600">—</span>
+                        )}
+                        {art.tags && art.tags.length > 3 && (
+                          <span className="text-[10px] text-slate-500 self-center">
+                            +{art.tags.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+
+                    {/* Engagement Column */}
+                    <TableCell className="px-5 py-4">
+                      <div className="flex flex-col gap-1 text-xs text-slate-400">
+                        <span className="flex items-center gap-1">
+                          <EyeIcon className="w-3.5 h-3.5 text-cyan-400" />
+                          <span>{art.stats?.views || 0} views</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <HeartIcon className="w-3.5 h-3.5 text-rose-400" />
+                          <span>{art.stats?.likes || 0} likes</span>
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    {/* Status Column */}
+                    <TableCell className="px-5 py-4">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full ${art.is_featured
+                            ? "bg-emerald-950/60 text-emerald-300 border border-emerald-500/30"
+                            : "bg-slate-950/60 text-slate-400 border border-slate-800"
+                          }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${art.is_featured ? "bg-emerald-400 animate-pulse" : "bg-slate-500"
+                            }`}
+                        />
+                        <span>{art.is_featured ? "Featured" : "Standard"}</span>
+                      </span>
+                    </TableCell>
+
+                    {/* Action Buttons */}
+                    <TableCell className="px-5 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => window.open(`/blog/${art.id}`, "_blank")}
+                          className="p-2 rounded-xl text-slate-400 hover:text-cyan-400 hover:bg-slate-800/80 transition-all cursor-pointer"
+                          title="Preview on site"
+                        >
+                          <EyeIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => openTranslateModal(art.id)}
+                          className="p-2 rounded-xl text-slate-400 hover:text-emerald-400 hover:bg-slate-800/80 transition-all cursor-pointer"
+                          title="Translate / Link Arabic"
+                        >
+                          <LanguageIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => openEditModal(art.id)}
+                          className="p-2 rounded-xl text-slate-400 hover:text-blue-400 hover:bg-slate-800/80 transition-all cursor-pointer"
+                          title="Edit Article"
+                        >
+                          <PencilSquareIcon className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(art.id)}
+                          className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-all cursor-pointer"
+                          title="Delete Article"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Pagination bar */}
+        {meta && meta.last_page > 1 && (
+          <div className="p-4 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
+            <span>
+              Page {meta.current_page} of {meta.last_page} ({meta.total} total items)
+            </span>
+            <div className="flex gap-2">
+              <button
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => p - 1)}
+                className="px-3 py-1.5 rounded-lg border border-slate-800 disabled:opacity-30 hover:bg-slate-800 transition-colors"
+              >
+                Previous
+              </button>
+              <button
+                disabled={currentPage >= meta.last_page}
+                onClick={() => setCurrentPage((p) => p + 1)}
+                className="px-3 py-1.5 rounded-lg border border-slate-800 disabled:opacity-30 hover:bg-slate-800 transition-colors"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Pagination */}
-      {meta && meta.last_page > 1 && (
-        <div className="flex justify-between items-center mt-6">
-          <span className="text-xs text-gray-500 dark:text-gray-400">
-            Showing Page {meta.current_page} of {meta.last_page} ({meta.total} Articles total)
-          </span>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={currentPage === 1 || isLoading}
-              onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-            >
-              Previous
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={currentPage === meta.last_page || isLoading}
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, meta.last_page))}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Create/Edit English Article Modal */}
-      <Modal isOpen={isFormModalOpen} onClose={() => setIsFormModalOpen(false)} className="w-full max-w-3xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl flex flex-col max-h-[85vh] overflow-hidden shadow-2xl">
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          THE ULTIMATE ARTICLE CREATION / EDITING STUDIO MODAL (MAX-W-5XL)
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <Modal
+        isOpen={isFormModalOpen}
+        onClose={() => setIsFormModalOpen(false)}
+        showCloseButton={false}
+        className="w-full max-w-5xl mx-auto bg-slate-900 border border-slate-800 rounded-3xl flex flex-col max-h-[92vh] overflow-hidden shadow-[0_25px_80px_rgba(0,0,0,0.9)]"
+      >
         {modalLoading ? (
-          <div className="py-12 text-center text-gray-500">
-            <span className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin inline-block mr-2"></span>
-            Loading article data...
+          <div className="py-24 text-center text-slate-400 space-y-3">
+            <span className="w-8 h-8 rounded-full border-3 border-cyan-500 border-t-transparent animate-spin inline-block"></span>
+            <p className="text-sm font-medium">Fetching article content & translations...</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            {/* FIXED HEADER WITH THE CORRECT BLUE TABS */}
-            <div className="p-4 border-b border-slate-800 bg-slate-900 sticky top-0 z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6">
-              <h3 className="text-lg font-bold text-gray-800 dark:text-white/90">
-                {isEditing ? "Edit Article" : "Write New Article"}
-              </h3>
-              <div className="flex gap-4">
-                <button 
+            {/* 1. STUDIO HEADER */}
+            <div className="px-8 py-5 border-b border-slate-800 bg-slate-900/90 backdrop-blur-md sticky top-0 z-20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <PencilSquareIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    {isEditing ? `Edit Article #${editingId}` : "Write New Article"}
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 font-normal">
+                      Studio
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Draft modular blocks, media assets, and bilingual versions
+                  </p>
+                </div>
+              </div>
+
+              {/* Center/Right: Bilingual Segmented Switcher & Dedicated Close Button */}
+              <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                <div className="bg-slate-950 p-1.5 rounded-2xl border border-slate-800 flex items-center gap-1 shadow-inner">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFormTab("en")}
+                    className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 ${activeFormTab === "en"
+                        ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                        : "text-slate-400 hover:text-white"
+                      }`}
+                  >
+                    <span>🇬🇧</span>
+                    <span>English Content</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveFormTab("ar")}
+                    className={`px-4 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-2 ${activeFormTab === "ar"
+                        ? "bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm"
+                        : "text-slate-400 hover:text-white"
+                      }`}
+                  >
+                    <span>🇸🇦</span>
+                    <span>المحتوى العربي</span>
+                  </button>
+                </div>
+
+                <div className="h-6 w-[1px] bg-slate-800 hidden sm:block" />
+
+                {/* DEDICATED CLOSE BUTTON - NEVER OVERLAPS TABS */}
+                <button
                   type="button"
-                  onClick={() => setActiveFormTab('en')}
-                  className={`pb-2 px-4 font-semibold transition-all ${activeFormTab === 'en' ? 'border-b-2 border-cyan-500 text-cyan-400' : 'text-slate-400'}`}
+                  onClick={() => setIsFormModalOpen(false)}
+                  className="w-9 h-9 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white flex items-center justify-center transition-all cursor-pointer shadow-sm hover:scale-105 active:scale-95"
+                  title="Close (Esc)"
                 >
-                  English Content
-                </button>
-                <button 
-                  type="button"
-                  onClick={() => setActiveFormTab('ar')}
-                  className={`pb-2 px-4 font-semibold transition-all ${activeFormTab === 'ar' ? 'border-b-2 border-cyan-500 text-cyan-400' : 'text-slate-400'}`}
-                >
-                  المحتوى العربي
+                  <XMarkIcon className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* SCROLLABLE INNER BODY FOR INPUT FIELDS ONLY */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-900/50">
-              {activeFormTab === 'en' ? (
+            {/* 2. SCROLLABLE STUDIO CANVAS */}
+            <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-slate-950/40 custom-scrollbar">
+              {/* SECTION A: CATEGORY & HOMEPAGE VISIBILITY */}
+              <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                      <SparklesIcon className="w-4 h-4 text-cyan-400" />
+                      <span>Article Classification & Destination</span>
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Select which section this article belongs to and configure homepage highlight
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  {/* Technical Card */}
+                  <button
+                    type="button"
+                    onClick={() => setCategory("technical")}
+                    className={`p-4 rounded-2xl border text-left transition-all cursor-pointer relative flex items-start gap-4 ${category === "technical"
+                        ? "bg-cyan-950/30 border-cyan-500/60 shadow-[0_0_25px_rgba(6,182,212,0.15)] ring-1 ring-cyan-500/40"
+                        : "bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700"
+                      }`}
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center text-2xl flex-shrink-0">
+                      💻
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-sm font-bold text-white">Technical Deep-dive</h5>
+                        {category === "technical" && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#22d3ee]"></span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                        Engineering, architecture, coding tutorials, and backend solutions. Appears in the main /blog feed.
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Personal Card */}
+                  <button
+                    type="button"
+                    onClick={() => setCategory("personal")}
+                    className={`p-4 rounded-2xl border text-left transition-all cursor-pointer relative flex items-start gap-4 ${category === "personal"
+                        ? "bg-purple-950/30 border-purple-500/60 shadow-[0_0_25px_rgba(168,85,247,0.15)] ring-1 ring-purple-500/40"
+                        : "bg-slate-950/50 border-slate-800 text-slate-400 hover:border-slate-700"
+                      }`}
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center text-2xl flex-shrink-0">
+                      ✍️
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-sm font-bold text-white">Personal Reflections</h5>
+                        {category === "personal" && (
+                          <span className="w-2.5 h-2.5 rounded-full bg-purple-400 shadow-[0_0_8px_#c084fc]"></span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                        Life journey, career philosophy, thoughts, and lessons. Isolated cleanly in /blog/personal.
+                      </p>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Featured Toggle Switch */}
+                <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isFeatured}
+                        onChange={(e) => setIsFeatured(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-600"></div>
+                    </label>
+                    <div>
+                      <span className="text-xs font-semibold text-slate-300 block">
+                        Feature on Homepage (Featured Post)
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        When enabled, this article is prioritized in the homepage carousel
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* TAB 1: ENGLISH CONTENT */}
+              {activeFormTab === "en" ? (
                 <>
-                  {/* Title */}
-                  <div>
-                    <Label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-                      English Title <span className="text-cyan-500">*</span>
-                    </Label>
-                    <input
-                      type="text"
-                      required
-                      value={titleEn}
-                      onChange={(e) => handleFieldChange("title_en", e.target.value, setTitleEn)}
-                      className={`w-full h-11 px-4 py-2.5 rounded-xl border text-sm bg-slate-950/80 text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all ${
-                        errors.title_en
-                          ? "border-red-500"
-                          : "border-slate-800"
-                      }`}
-                      placeholder="E.g. JavaScript Closures Demystified"
-                    />
-                    {errors.title_en && (
-                      <p className="mt-1 text-xs text-red-500">{errors.title_en[0]}</p>
-                    )}
+                  {/* SECTION B: ARTICLE METADATA */}
+                  <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-5">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                      <span>Article Details (English)</span>
+                    </h4>
+
+                    {/* Title */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        English Title / عنوان المقال
+                      </label>
+                      <input
+                        type="text"
+                        value={titleEn}
+                        onChange={(e) => handleFieldChange("title_en", e.target.value, setTitleEn)}
+                        placeholder="E.g. Building Scalable Event-Driven Microservices in Laravel"
+                        className="w-full h-12 px-4 rounded-xl border border-slate-800 bg-slate-950/80 text-white text-sm outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all placeholder:text-slate-600"
+                      />
+                    </div>
+
+                    {/* Excerpt */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        Summary / Brief Excerpt
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={excerptEn}
+                        onChange={(e) => handleFieldChange("excerpt_en", e.target.value, setExcerptEn)}
+                        placeholder="Write a catchy 2-3 sentence overview that appears on preview cards..."
+                        className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950/80 text-white text-sm outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all placeholder:text-slate-600 leading-relaxed"
+                      />
+                    </div>
+
+                    {/* Tags */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        Tags & Keywords (Comma separated)
+                      </label>
+                      <input
+                        type="text"
+                        value={tags}
+                        onChange={(e) => handleFieldChange("tags", e.target.value, setTags)}
+                        placeholder="Laravel, Redis, Architecture, Performance"
+                        className="w-full h-11 px-4 rounded-xl border border-slate-800 bg-slate-950/80 text-white text-sm outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all placeholder:text-slate-600"
+                      />
+                      {tagsList.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {tagsList.map((t, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2.5 py-0.5 rounded-full text-xs bg-slate-800 text-cyan-300 border border-slate-700 font-medium"
+                            >
+                              #{t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Excerpt */}
-                  <div>
-                    <Label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Excerpt / Brief Description <span className="text-cyan-500">*</span>
-                    </Label>
-                    <textarea
-                      required
-                      rows={3}
-                      value={excerptEn}
-                      onChange={(e) => handleFieldChange("excerpt_en", e.target.value, setExcerptEn)}
-                      className={`w-full px-4 py-2.5 rounded-xl border text-sm bg-slate-950/80 text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all ${
-                        errors.excerpt_en
-                          ? "border-red-500"
-                          : "border-slate-800"
-                      }`}
-                      placeholder="Provide a brief summary of the article..."
-                    />
-                    {errors.excerpt_en && (
-                      <p className="mt-1 text-xs text-red-500">{errors.excerpt_en[0]}</p>
-                    )}
+                  {/* SECTION C: COVER MEDIA STUDIO */}
+                  <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                      <PhotoIcon className="w-4 h-4 text-cyan-400" />
+                      <span>Cover Media Studio</span>
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* Image Dropzone */}
+                      <div className="space-y-2">
+                        <label className="block text-xs font-medium text-slate-400">
+                          Feature Image (16:9 Recommended)
+                        </label>
+                        <div
+                          onClick={() => imageInputRef.current?.click()}
+                          className="border-2 border-dashed border-slate-800 hover:border-cyan-500/60 rounded-2xl p-5 text-center cursor-pointer transition-all bg-slate-950/40 hover:bg-cyan-950/10 group flex flex-col items-center justify-center min-h-[140px]"
+                        >
+                          <input
+                            type="file"
+                            ref={imageInputRef}
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) =>
+                              handleFileChange(e, setSelectedImage, setImagePreviewUrl, "feature_image")
+                            }
+                          />
+                          {imagePreviewUrl ? (
+                            <div className="relative w-full h-32 rounded-xl overflow-hidden group">
+                              <Image
+                                src={imagePreviewUrl}
+                                alt="Cover preview"
+                                fill
+                                className="object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs text-white font-medium transition-opacity">
+                                Click to replace image
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              <div className="w-10 h-10 rounded-xl bg-slate-900 text-slate-400 flex items-center justify-center mx-auto group-hover:text-cyan-400 transition-colors">
+                                <PhotoIcon className="w-5 h-5" />
+                              </div>
+                              <p className="text-xs font-medium text-slate-300">
+                                Click to browse cover image
+                              </p>
+                              <p className="text-[10px] text-slate-500">PNG, JPG, WebP up to 10MB</p>
+                            </div>
+                          )}
+                        </div>
+                        {imagePreviewUrl && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedImage(null);
+                              setImagePreviewUrl(null);
+                            }}
+                            className="text-[11px] text-rose-400 hover:underline cursor-pointer"
+                          >
+                            Remove cover image
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Video Dropzone */}
+                      <div className="space-y-2">
+                        <label className="block text-xs font-medium text-slate-400">
+                          Feature Video (Optional)
+                        </label>
+                        <div
+                          onClick={() => videoInputRef.current?.click()}
+                          className="border-2 border-dashed border-slate-800 hover:border-cyan-500/60 rounded-2xl p-5 text-center cursor-pointer transition-all bg-slate-950/40 hover:bg-cyan-950/10 group flex flex-col items-center justify-center min-h-[140px]"
+                        >
+                          <input
+                            type="file"
+                            ref={videoInputRef}
+                            accept="video/mp4,video/quicktime"
+                            className="hidden"
+                            onChange={(e) =>
+                              handleFileChange(e, setSelectedVideo, setVideoPreviewUrl, "feature_video")
+                            }
+                          />
+                          <div className="space-y-1">
+                            <div className="w-10 h-10 rounded-xl bg-slate-900 text-slate-400 flex items-center justify-center mx-auto group-hover:text-cyan-400 transition-colors">
+                              <VideoCameraIcon className="w-5 h-5" />
+                            </div>
+                            <p className="text-xs font-medium text-slate-300">
+                              {selectedVideo ? selectedVideo.name : "Click to select Cover Video"}
+                            </p>
+                            <p className="text-[10px] text-slate-500">Supports MP4, MOV (Max 20MB)</p>
+                          </div>
+                        </div>
+                        {videoPreviewUrl && (
+                          <div className="flex justify-between items-center text-[11px]">
+                            <span className="text-emerald-400">✓ Video Attached</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedVideo(null);
+                                setVideoPreviewUrl(null);
+                              }}
+                              className="text-rose-400 hover:underline cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Dynamic Content Blocks Section */}
-                  <div className="pt-4 border-t border-slate-800">
-                    <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Article Sections & Blocks (EN)
-                      </h4>
+                  {/* SECTION D: MODULAR CONTENT BLOCKS */}
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                          <CodeBracketIcon className="w-4 h-4 text-cyan-400" />
+                          <span>Article Sections & Content Blocks</span>
+                        </h4>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Compose your article with flexible paragraphs, code snippets, and inline media
+                        </p>
+                      </div>
+
                       <button
                         type="button"
                         onClick={addBlock}
-                        className="text-xs px-3 py-1.5 rounded-lg border border-cyan-500/30 text-cyan-400 hover:text-white hover:bg-cyan-600 hover:border-cyan-600 transition-all font-semibold cursor-pointer"
+                        className="px-4 py-2 rounded-xl text-xs font-semibold bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/20 transition-all flex items-center gap-1.5 cursor-pointer"
                       >
-                        + Add Section Block
+                        <PlusIcon className="w-4 h-4" />
+                        <span>Add Section</span>
                       </button>
                     </div>
 
@@ -1011,347 +1514,233 @@ export default function AdminArticlesPage() {
                       {blocksEn.map((block, idx) => (
                         <div
                           key={idx}
-                          className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800 relative space-y-4 hover:border-slate-700/80 transition-all"
+                          className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-4 relative hover:border-slate-700 transition-all shadow-lg"
                         >
-                          {/* Block Controls */}
-                          <div className="absolute top-4 right-4 flex items-center gap-3">
-                            {idx > 0 && (
+                          {/* Block Card Header Bar */}
+                          <div className="flex justify-between items-center pb-3 border-b border-slate-800/80">
+                            <span className="text-xs font-bold px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                              Section #{idx + 1}
+                            </span>
+
+                            <div className="flex items-center gap-2">
+                              {idx > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => moveBlock(idx, "up")}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                                  title="Move section up"
+                                >
+                                  <ArrowUpIcon className="w-4 h-4" />
+                                </button>
+                              )}
+                              {idx < blocksEn.length - 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => moveBlock(idx, "down")}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                                  title="Move section down"
+                                >
+                                  <ArrowDownIcon className="w-4 h-4" />
+                                </button>
+                              )}
                               <button
                                 type="button"
-                                onClick={() => moveBlock(idx, "up")}
-                                className="text-slate-450 hover:text-cyan-400 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                                title="Move Block Up"
+                                onClick={() => duplicateBlock(idx)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition-colors"
+                                title="Duplicate section"
                               >
-                                ▲ Up
+                                <DocumentDuplicateIcon className="w-4 h-4" />
                               </button>
-                            )}
-                            {idx < blocksEn.length - 1 && (
-                              <button
-                                type="button"
-                                onClick={() => moveBlock(idx, "down")}
-                                className="text-slate-450 hover:text-cyan-400 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                                title="Move Block Down"
-                              >
-                                ▼ Down
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => duplicateBlock(idx)}
-                              className="text-slate-450 hover:text-cyan-400 text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                              title="Duplicate Block"
-                            >
-                              ⎘ Duplicate
-                            </button>
-                            {blocksEn.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => removeBlock(idx)}
-                                className="text-rose-500 hover:text-rose-400 text-xs font-semibold transition-colors cursor-pointer"
-                                title="Remove Block"
-                              >
-                                Remove
-                              </button>
-                            )}
+                              {blocksEn.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeBlock(idx)}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+                                  title="Delete section"
+                                >
+                                  <TrashIcon className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
                           </div>
 
-                          <span className="inline-block text-[10px] font-bold tracking-wider bg-cyan-400/10 text-cyan-400 px-2 py-0.5 rounded-full mb-1">
-                            Block #{idx + 1}
-                          </span>
-
-                          {/* Block Title */}
+                          {/* Subheading */}
                           <div>
-                            <label className="block text-xs font-semibold mb-1 text-slate-400">
-                              Block Subheading
+                            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                              Section Subheading
                             </label>
                             <input
                               type="text"
                               value={block.title}
                               onChange={(e) => handleBlockChange(idx, "title", e.target.value)}
-                              className="w-full h-9 px-3 rounded-lg border border-slate-800 bg-slate-950 text-xs text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all"
-                              placeholder="e.g. 1. Introduction"
+                              placeholder="E.g. 1. Architecture & Core Concepts"
+                              className="w-full h-11 px-4 rounded-xl border border-slate-800 bg-slate-950 text-white text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/10 transition-all"
                             />
                           </div>
 
-                          {/* Block Text */}
+                          {/* Paragraph text */}
                           <div>
-                            <label className="block text-xs font-semibold mb-1 text-slate-400">
-                              Block Paragraph Text
+                            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
+                              Body Text (Markdown & Pre-line Supported)
                             </label>
                             <textarea
                               rows={4}
                               value={block.text}
                               onChange={(e) => handleBlockChange(idx, "text", e.target.value)}
-                              className="w-full px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 text-xs text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all"
-                              placeholder="Write paragraph content here..."
+                              placeholder="Write the in-depth technical explanation or section story..."
+                              className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 text-white text-sm outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/10 transition-all leading-relaxed"
                             />
                           </div>
 
-                          {/* Block Code */}
+                          {/* Code block */}
                           <div>
-                            <label className="block text-xs font-semibold mb-1 text-slate-400">
-                              Code Snippet (Optional)
+                            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                              <span>Code Snippet (Optional)</span>
+                              <span className="text-[10px] text-cyan-400 lowercase font-mono">
+                                syntax highlighted
+                              </span>
                             </label>
                             <textarea
-                              rows={3}
+                              rows={4}
                               value={block.code}
                               onChange={(e) => handleBlockChange(idx, "code", e.target.value)}
-                              className="w-full px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-950 font-mono text-xs text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all"
-                              placeholder="const add = (a, b) => a + b;"
+                              placeholder="// Paste JavaScript, PHP, Python, or shell code here..."
+                              className="w-full p-4 rounded-xl border border-slate-800 bg-black font-mono text-xs text-cyan-300 outline-none focus:border-cyan-500 transition-all leading-relaxed"
                             />
                           </div>
 
-                          {/* Block Media Gallery Uploads */}
-                          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Images Multiple Uploader */}
-                            <div>
-                              <label className="block text-xs font-semibold mb-1 text-slate-400">
-                                Block Images
-                              </label>
-                              <label className="border border-dashed border-slate-800 bg-slate-950/40 hover:bg-slate-950/80 hover:border-cyan-500/50 rounded-xl p-3 transition-all cursor-pointer text-center group flex flex-col items-center justify-center min-h-[90px] w-full">
+                          {/* Block Media Attachments */}
+                          <div className="pt-2 border-t border-slate-800/80 space-y-3">
+                            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                              Section Media Attachments
+                            </label>
+
+                            <div className="flex flex-wrap gap-4 items-center">
+                              {/* Add Images */}
+                              <label className="px-3.5 py-2 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-xs text-slate-300 font-medium cursor-pointer transition-colors flex items-center gap-2">
+                                <PhotoIcon className="w-4 h-4 text-cyan-400" />
+                                <span>Add Images</span>
                                 <input
                                   type="file"
                                   multiple
                                   accept="image/*"
-                                  onChange={(e) => handleBlockFilesChange(idx, "images", e.target.files)}
                                   className="hidden"
+                                  onChange={(e) => handleBlockFilesChange(idx, "images", e.target.files)}
                                 />
-                                <svg className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 mb-1 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                                </svg>
-                                <span className="text-[11px] text-slate-455 group-hover:text-slate-300 font-medium">Add Images</span>
                               </label>
-                            </div>
 
-                            {/* Videos Multiple Uploader */}
-                            <div>
-                              <label className="block text-xs font-semibold mb-1 text-slate-400">
-                                Block Videos
-                              </label>
-                              <label className="border border-dashed border-slate-800 bg-slate-950/40 hover:bg-slate-950/80 hover:border-cyan-500/50 rounded-xl p-3 transition-all cursor-pointer text-center group flex flex-col items-center justify-center min-h-[90px] w-full">
+                              {/* Add Videos */}
+                              <label className="px-3.5 py-2 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-xs text-slate-300 font-medium cursor-pointer transition-colors flex items-center gap-2">
+                                <VideoCameraIcon className="w-4 h-4 text-purple-400" />
+                                <span>Add Videos</span>
                                 <input
                                   type="file"
                                   multiple
                                   accept="video/*"
-                                  onChange={(e) => handleBlockFilesChange(idx, "videos", e.target.files)}
                                   className="hidden"
+                                  onChange={(e) => handleBlockFilesChange(idx, "videos", e.target.files)}
                                 />
-                                <svg className="w-5 h-5 text-slate-500 group-hover:text-cyan-400 mb-1 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-                                </svg>
-                                <span className="text-[11px] text-slate-455 group-hover:text-slate-300 font-medium">Add Videos</span>
                               </label>
                             </div>
-                          </div>
 
-                          {/* Server Uploaded Images Gallery Grid */}
-                          {block.images && block.images.length > 0 && (
-                            <div className="mt-3">
-                              <label className="block text-[11px] font-semibold mb-1.5 text-gray-600 dark:text-gray-400">
-                                Uploaded Block Images
-                              </label>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            {/* Existing Images Gallery */}
+                            {block.images && block.images.length > 0 && (
+                              <div className="flex flex-wrap gap-2 pt-2">
                                 {block.images.map((imgUrl, imgIdx) => (
-                                  <div key={imgIdx} className="relative group rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 aspect-video bg-gray-100 dark:bg-gray-850">
+                                  <div
+                                    key={imgIdx}
+                                    className="relative w-20 h-16 rounded-lg overflow-hidden border border-slate-800 group"
+                                  >
                                     <Image
-                                      src={resolveImageUrl(imgUrl, "")}
-                                      alt="Block Uploaded Image"
+                                      src={imgUrl.startsWith("http") ? imgUrl : resolveImageUrl(imgUrl)}
+                                      alt="Attachment"
                                       fill
                                       className="object-cover"
-                                      sizes="120px"
                                     />
                                     <button
                                       type="button"
                                       onClick={() => handleRemoveServerFile(idx, "images", imgUrl)}
-                                      className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 cursor-pointer"
-                                      title="Delete Image from Server"
+                                      className="absolute inset-0 bg-red-950/80 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-semibold transition-opacity"
                                     >
-                                      <TrashIcon className="w-3.5 h-3.5" />
+                                      Delete
                                     </button>
                                   </div>
                                 ))}
                               </div>
-                            </div>
-                          )}
+                            )}
 
-                          {/* Server Uploaded Videos Gallery Grid */}
-                          {block.videos && block.videos.length > 0 && (
-                            <div className="mt-3">
-                              <label className="block text-[11px] font-semibold mb-1.5 text-gray-600 dark:text-gray-400">
-                                Uploaded Block Videos
-                              </label>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                {block.videos.map((vidUrl, vidIdx) => (
-                                  <div key={vidIdx} className="relative group rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 aspect-video bg-gray-100 dark:bg-gray-850 flex items-center justify-center">
-                                    <video
-                                      src={resolveImageUrl(vidUrl, "")}
-                                      className="w-full h-full object-cover"
-                                      controls
-                                    />
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveServerFile(idx, "videos", vidUrl)}
-                                      className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 cursor-pointer z-10"
-                                      title="Delete Video from Server"
-                                    >
-                                      <TrashIcon className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                ))}
+                            {/* New pending images preview */}
+                            {block.newImages && block.newImages.length > 0 && (
+                              <div className="text-[11px] text-cyan-400 flex items-center gap-1.5 pt-1">
+                                <CheckIcon className="w-3.5 h-3.5" />
+                                <span>{block.newImages.length} new image(s) ready to upload</span>
                               </div>
-                            </div>
-                          )}
-
-                          {/* New Selected Images Local Preview Grid */}
-                          {block.newImages && block.newImages.length > 0 && (
-                            <div className="mt-3">
-                              <label className="block text-[11px] font-semibold mb-1.5 text-green-650 dark:text-green-400">
-                                New Images (Pending Upload)
-                              </label>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                {block.newImages.map((file, fileIdx) => {
-                                  const localPreviewUrl = URL.createObjectURL(file);
-                                  return (
-                                    <div key={fileIdx} className="relative group rounded-lg overflow-hidden border border-green-200 dark:border-green-800/80 aspect-video bg-gray-100 dark:bg-gray-850">
-                                      <Image
-                                        src={localPreviewUrl}
-                                        alt="New Local Image"
-                                        fill
-                                        className="object-cover"
-                                        sizes="120px"
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setBlocksEn((prev) =>
-                                            prev.map((b, bIdx) => {
-                                              if (bIdx === idx) {
-                                                return {
-                                                  ...b,
-                                                  newImages: (b.newImages || []).filter((_, fIdx) => fIdx !== fileIdx),
-                                                };
-                                              }
-                                              return b;
-                                            })
-                                          );
-                                        }}
-                                        className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 cursor-pointer"
-                                        title="Cancel Selection"
-                                      >
-                                        <TrashIcon className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* New Selected Videos Local Preview Grid */}
-                          {block.newVideos && block.newVideos.length > 0 && (
-                            <div className="mt-3">
-                              <label className="block text-[11px] font-semibold mb-1.5 text-green-655 dark:text-green-400">
-                                New Videos (Pending Upload)
-                              </label>
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                {block.newVideos.map((file, fileIdx) => {
-                                  const localPreviewUrl = URL.createObjectURL(file);
-                                  return (
-                                    <div key={fileIdx} className="relative group rounded-lg overflow-hidden border border-green-200 dark:border-green-800/80 aspect-video bg-gray-100 dark:bg-gray-850 flex items-center justify-center">
-                                      <video
-                                        src={localPreviewUrl}
-                                        className="w-full h-full object-cover"
-                                        controls
-                                      />
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setBlocksEn((prev) =>
-                                            prev.map((b, bIdx) => {
-                                              if (bIdx === idx) {
-                                                return {
-                                                  ...b,
-                                                  newVideos: (b.newVideos || []).filter((_, fIdx) => fIdx !== fileIdx),
-                                                };
-                                              }
-                                              return b;
-                                            })
-                                          );
-                                        }}
-                                        className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-750 cursor-pointer z-10"
-                                        title="Cancel Selection"
-                                      >
-                                        <TrashIcon className="w-3.5 h-3.5" />
-                                      </button>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       ))}
+
+                      {/* Add Section dashed button */}
+                      <button
+                        type="button"
+                        onClick={addBlock}
+                        className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-800 hover:border-cyan-500/50 hover:bg-cyan-500/5 text-slate-400 hover:text-cyan-400 transition-all font-semibold text-xs flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        <PlusIcon className="w-4 h-4" />
+                        <span>Add Another Section Block</span>
+                      </button>
                     </div>
                   </div>
                 </>
               ) : (
-                <>
-                  {/* Arabic Title */}
-                  <div>
-                    <Label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Arabic Title <span className="text-cyan-500">*</span>
-                    </Label>
-                    <input
-                      type="text"
-                      required
-                      dir="rtl"
-                      value={titleAr}
-                      onChange={(e) => handleFieldChange("title_ar", e.target.value, setTitleAr)}
-                      className={`w-full h-11 px-4 py-2.5 rounded-xl border text-sm text-right font-sans-arabic bg-slate-950/80 text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all ${
-                        errors.title_ar
-                          ? "border-red-500"
-                          : "border-slate-800"
-                      }`}
-                      placeholder="العنوان باللغة العربية"
-                    />
-                    {errors.title_ar && (
-                      <p className="mt-1 text-xs text-red-500">{errors.title_ar[0]}</p>
-                    )}
-                  </div>
-
-                  {/* Arabic Excerpt */}
-                  <div>
-                    <Label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Arabic Excerpt / Brief Description <span className="text-cyan-500">*</span>
-                    </Label>
-                    <textarea
-                      required
-                      rows={3}
-                      dir="rtl"
-                      value={excerptAr}
-                      onChange={(e) => handleFieldChange("excerpt_ar", e.target.value, setExcerptAr)}
-                      className={`w-full px-4 py-2.5 rounded-xl border text-sm text-right font-sans-arabic bg-slate-950/80 text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all ${
-                        errors.excerpt_ar
-                          ? "border-red-500"
-                          : "border-slate-800"
-                      }`}
-                      placeholder="الوصف المختصر للمقال بالعربية..."
-                    />
-                    {errors.excerpt_ar && (
-                      <p className="mt-1 text-xs text-red-500">{errors.excerpt_ar[0]}</p>
-                    )}
-                  </div>
-
-                  {/* Block Mappings */}
-                  <div className="pt-4 border-t border-slate-800">
-                    <div className="mb-4">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        Translate Section Blocks (Arabic)
+                /* TAB 2: ARABIC CONTENT */
+                <div className="space-y-6" dir="rtl">
+                  <div className="p-6 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                        البيانات النصية (اللغة العربية)
                       </h4>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Add or remove section blocks in the English tab. The changes will sync here dynamically.
-                      </p>
+                      <span className="text-[11px] text-slate-500">
+                        جميع الحقول اختيارية تماماً
+                      </span>
                     </div>
+
+                    {/* Arabic Title */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-400 mb-2 text-right">
+                        عنوان المقال بالعربية
+                      </label>
+                      <input
+                        type="text"
+                        dir="rtl"
+                        value={titleAr}
+                        onChange={(e) => handleFieldChange("title_ar", e.target.value, setTitleAr)}
+                        placeholder="مثال: هندسة النظم وتوزيع الأحمال في لارافيل"
+                        className="w-full h-12 px-4 rounded-xl border border-slate-800 bg-slate-950/80 text-white text-sm outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all placeholder:text-slate-600 text-right"
+                      />
+                    </div>
+
+                    {/* Arabic Excerpt */}
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-400 mb-2 text-right">
+                        نبذة ومختصر المقال بالعربية
+                      </label>
+                      <textarea
+                        rows={3}
+                        dir="rtl"
+                        value={excerptAr}
+                        onChange={(e) => handleFieldChange("excerpt_ar", e.target.value, setExcerptAr)}
+                        placeholder="اكتب مقدمة ومختصر مشوق يظهر في بطاقات العرض..."
+                        className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950/80 text-white text-sm outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all placeholder:text-slate-600 text-right leading-relaxed"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Arabic Blocks Mapping */}
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                      أقسام المقال بالعربية (Section Blocks)
+                    </h4>
 
                     <div className="space-y-6">
                       {blocksAr.map((block, idx) => {
@@ -1359,354 +1748,218 @@ export default function AdminArticlesPage() {
                         return (
                           <div
                             key={idx}
-                            className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800 relative hover:border-slate-700/80 transition-all"
+                            className="p-6 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-4 relative"
                           >
-                            <div className="flex justify-between items-center mb-3">
-                              <span className="inline-block text-[10px] font-bold tracking-wider bg-cyan-400/10 text-cyan-400 px-2 py-0.5 rounded-full">
-                                Block #{idx + 1}
-                              </span>
-                            </div>
+                            <span className="text-xs font-bold px-3 py-1 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 inline-block">
+                              القسم #{idx + 1}
+                            </span>
 
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                              {/* Left Side: English Reference */}
-                              <div className="p-4 bg-slate-950 rounded-xl border border-slate-900 text-xs text-slate-400 space-y-2 flex flex-col justify-start">
-                                <p className="font-bold text-slate-300 border-b border-slate-900 pb-1.5">English Reference:</p>
-                                {refBlock?.title ? (
-                                  <p><strong>Subheading:</strong> {refBlock.title}</p>
-                                ) : (
-                                  <p className="italic text-slate-655">No Subheading</p>
+                            {/* English Reference preview if available */}
+                            {refBlock && (refBlock.title || refBlock.text) && (
+                              <div
+                                dir="ltr"
+                                className="p-3.5 rounded-xl bg-slate-950 border border-slate-800/80 text-xs text-slate-400 space-y-1.5"
+                              >
+                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                  English Reference:
+                                </span>
+                                {refBlock.title && (
+                                  <p className="font-semibold text-slate-200">{refBlock.title}</p>
                                 )}
-                                {refBlock?.text ? (
-                                  <p className="leading-relaxed whitespace-pre-line"><strong>Text:</strong> {refBlock.text}</p>
-                                ) : (
-                                  <p className="italic text-slate-655">No Paragraph Text</p>
-                                )}
-                                {refBlock?.code && (
-                                  <div className="mt-1.5">
-                                    <strong>Code:</strong>
-                                    <pre className="p-3 bg-slate-900 border border-slate-800/80 rounded-lg font-mono text-[10px] overflow-x-auto text-slate-300 mt-1">{refBlock.code}</pre>
-                                  </div>
+                                {refBlock.text && (
+                                  <p className="line-clamp-2 text-slate-400">{refBlock.text}</p>
                                 )}
                               </div>
-
-                              {/* Right Side: Arabic Translation */}
-                              <div className="space-y-4" dir="rtl">
-                                <div>
-                                  <label className="block text-xs font-semibold mb-1 text-slate-400 text-right">
-                                    العنوان الفرعي بالعربية (Subheading)
-                                  </label>
-                                  <input
-                                    type="text"
-                                    dir="rtl"
-                                    value={block.title || ""}
-                                    onChange={(e) => handleArabicBlockChange(idx, "title", e.target.value)}
-                                    className="w-full h-10 px-3 rounded-lg border border-slate-800 bg-slate-950 text-xs text-right font-sans-arabic text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all"
-                                    placeholder="اكتب العنوان الفرعي بالعربية هنا..."
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="block text-xs font-semibold mb-1 text-slate-400 text-right">
-                                    النص بالعربية (Paragraph Text)
-                                  </label>
-                                  <textarea
-                                    rows={5}
-                                    dir="rtl"
-                                    value={block.text || ""}
-                                    onChange={(e) => handleArabicBlockChange(idx, "text", e.target.value)}
-                                    className="w-full px-3 py-2 rounded-lg border border-slate-800 bg-slate-950 text-xs text-right font-sans-arabic text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all resize-y"
-                                    placeholder="اكتب محتوى الفقرة بالعربية هنا..."
-                                  />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* Global Fields: Tags and Cover Media (Rendered at the bottom of the scrollable container) */}
-              <div className="pt-6 border-t border-slate-800 space-y-6">
-                {/* Tags */}
-                <div>
-                  <Label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Tags
-                  </Label>
-                  <input
-                    type="text"
-                    value={tags}
-                    onChange={(e) => handleFieldChange("tags", e.target.value, setTags)}
-                    className="w-full h-11 px-4 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-sm text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all"
-                    placeholder="e.g. JavaScript, ES6, Advanced"
-                  />
-                </div>
-
-                {/* Cover Media Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Feature Image */}
-                  <div>
-                    <Label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Feature Cover Image
-                    </Label>
-                    <div
-                      onClick={() => imageInputRef.current?.click()}
-                      className="border border-dashed border-slate-800 bg-slate-950/40 hover:bg-slate-950/80 hover:border-cyan-500/50 rounded-xl p-5 transition-all cursor-pointer text-center group flex flex-col items-center justify-center min-h-[120px]"
-                    >
-                      <input
-                        type="file"
-                        ref={imageInputRef}
-                        onChange={(e) => handleFileChange(e, setSelectedImage, setImagePreviewUrl, "feature_image")}
-                        accept="image/*"
-                        className="hidden"
-                      />
-                      <svg className="w-8 h-8 text-slate-500 group-hover:text-cyan-400 mb-2 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-xs text-slate-405 group-hover:text-slate-300 font-medium">
-                        {selectedImage ? selectedImage.name : "Click to select Cover Image"}
-                      </span>
-                      <span className="text-[10px] text-slate-500 mt-1">
-                        Supports JPG, PNG, WEBP (Max 2MB)
-                      </span>
-                    </div>
-                    {imagePreviewUrl && (
-                      <div className="relative w-28 h-16 rounded overflow-hidden border border-slate-800 mt-2">
-                        <Image src={imagePreviewUrl} alt="Cover Preview" fill className="object-cover" />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Feature Video */}
-                  <div>
-                    <Label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-                      Feature Video (Optional)
-                    </Label>
-                    <div
-                      onClick={() => videoInputRef.current?.click()}
-                      className="border border-dashed border-slate-800 bg-slate-950/40 hover:bg-slate-950/80 hover:border-cyan-500/50 rounded-xl p-5 transition-all cursor-pointer text-center group flex flex-col items-center justify-center min-h-[120px]"
-                    >
-                      <input
-                        type="file"
-                        ref={videoInputRef}
-                        onChange={(e) => handleFileChange(e, setSelectedVideo, setVideoPreviewUrl, "feature_video")}
-                        accept="video/*"
-                        className="hidden"
-                      />
-                      <svg className="w-8 h-8 text-slate-500 group-hover:text-cyan-400 mb-2 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                      <span className="text-xs text-slate-405 group-hover:text-slate-300 font-medium">
-                        {selectedVideo ? selectedVideo.name : "Click to select Cover Video"}
-                      </span>
-                      <span className="text-[10px] text-slate-500 mt-1">
-                        Supports MP4, MOV (Max 20MB)
-                      </span>
-                    </div>
-                    {videoPreviewUrl && (
-                      <span className="text-[10px] text-green-500 mt-2 block">✓ Video Attached</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Featured Toggle */}
-              <div className="flex items-center gap-2 mt-4 py-2 border-t border-slate-800 pt-4">
-                <input
-                  type="checkbox"
-                  id="is_featured"
-                  checked={isFeatured}
-                  onChange={(e) => setIsFeatured(e.target.checked)}
-                  className="w-4 h-4 text-cyan-500 border-slate-850 rounded focus:ring-cyan-500 bg-slate-950"
-                />
-                <Label htmlFor="is_featured" className="text-sm font-semibold text-slate-400 select-none cursor-pointer">
-                  Show on Homepage (Featured)
-                </Label>
-              </div>
-            </div>
-
-              {/* Submit Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-800 p-6 flex-shrink-0">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsFormModalOpen(false)}
-                  disabled={formLoading}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={formLoading}>
-                  {formLoading ? "Publishing..." : "Save Article"}
-                </Button>
-              </div>
-            </form>
-          )}
-      </Modal>
-
-      {/* Translation (Arabic) Modal */}
-      <Modal isOpen={isTranslateModalOpen} onClose={() => setIsTranslateModalOpen(false)} className="w-full max-w-3xl mx-auto bg-slate-900 border border-slate-800 rounded-2xl flex flex-col max-h-[85vh] overflow-hidden shadow-2xl">
-        {modalLoading ? (
-          <div className="py-12 text-center text-gray-500">
-            <span className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin inline-block mr-2"></span>
-            Loading content mappings...
-          </div>
-        ) : (
-          <form onSubmit={handleTranslateSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
-            {/* FIXED HEADER */}
-            <div className="p-4 border-b border-slate-800 bg-slate-900 sticky top-0 z-10 flex justify-between items-center px-6 flex-shrink-0">
-              <h3 className="text-lg font-bold text-white/90">
-                Link Arabic Translation
-              </h3>
-            </div>
-
-            {/* SCROLLABLE INNER BODY */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-900/50">
-              {/* Arabic Title */}
-              <div>
-                <Label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Arabic Title <span className="text-cyan-500">*</span>
-                </Label>
-                <input
-                  type="text"
-                  required
-                  dir="rtl"
-                  value={titleAr}
-                  onChange={(e) => handleFieldChange("title_ar", e.target.value, setTitleAr)}
-                  className={`w-full h-11 px-4 py-2.5 rounded-xl border text-sm text-right font-sans-arabic bg-slate-950/80 text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all ${
-                    errors.title_ar
-                      ? "border-red-500"
-                      : "border-slate-800"
-                  }`}
-                  placeholder="العنوان باللغة العربية"
-                />
-                {errors.title_ar && (
-                  <p className="mt-1 text-xs text-red-500">{errors.title_ar[0]}</p>
-                )}
-              </div>
-
-              {/* Arabic Excerpt */}
-              <div>
-                <Label className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Arabic Excerpt / Brief Description <span className="text-cyan-500">*</span>
-                </Label>
-                <textarea
-                  required
-                  rows={3}
-                  dir="rtl"
-                  value={excerptAr}
-                  onChange={(e) => handleFieldChange("excerpt_ar", e.target.value, setExcerptAr)}
-                  className={`w-full px-4 py-2.5 rounded-xl border text-sm text-right font-sans-arabic bg-slate-950/80 text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all ${
-                    errors.excerpt_ar
-                      ? "border-red-500"
-                      : "border-slate-800"
-                  }`}
-                  placeholder="الوصف المختصر للمقال بالعربية..."
-                />
-                {errors.excerpt_ar && (
-                  <p className="mt-1 text-xs text-red-500">{errors.excerpt_ar[0]}</p>
-                )}
-              </div>
-
-              {/* Block Mappings */}
-              <div className="pt-4 border-t border-slate-800">
-                <div className="mb-4">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                    Translate Section Blocks (Arabic)
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Map each block's text to its Arabic equivalent. Media files will link automatically.
-                  </p>
-                </div>
-
-                <div className="space-y-6">
-                  {blocksAr.map((block, idx) => {
-                    const refBlock = blocksEn[idx];
-                    return (
-                      <div
-                        key={idx}
-                        className="p-5 bg-slate-950/40 rounded-2xl border border-slate-800 relative hover:border-slate-700/80 transition-all"
-                      >
-                        <div className="flex justify-between items-center mb-3">
-                          <span className="inline-block text-[10px] font-bold tracking-wider bg-cyan-400/10 text-cyan-400 px-2 py-0.5 rounded-full">
-                            Block #{idx + 1}
-                          </span>
-                        </div>
-
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                          {/* Left Side: English Reference */}
-                          <div className="p-4 bg-slate-950 rounded-xl border border-slate-900 text-xs text-slate-400 space-y-2 flex flex-col justify-start">
-                            <p className="font-bold text-slate-300 border-b border-slate-900 pb-1.5">English Reference:</p>
-                            {refBlock?.title ? (
-                              <p><strong>Subheading:</strong> {refBlock.title}</p>
-                            ) : (
-                              <p className="italic text-slate-655">No Subheading</p>
                             )}
-                            {refBlock?.text ? (
-                              <p className="leading-relaxed whitespace-pre-line"><strong>Text:</strong> {refBlock.text}</p>
-                            ) : (
-                              <p className="italic text-slate-655">No Paragraph Text</p>
-                            )}
-                            {refBlock?.code && (
-                              <div className="mt-1.5">
-                                <strong>Code:</strong>
-                                <pre className="p-3 bg-slate-900 border border-slate-800/80 rounded-lg font-mono text-[10px] overflow-x-auto text-slate-300 mt-1">{refBlock.code}</pre>
-                              </div>
-                            )}
-                          </div>
 
-                          {/* Right Side: Arabic Translation */}
-                          <div className="space-y-4" dir="rtl">
                             <div>
-                              <label className="block text-xs font-semibold mb-1 text-slate-400 text-right">
-                                العنوان الفرعي بالعربية (Subheading)
+                              <label className="block text-xs font-medium text-slate-400 mb-1 text-right">
+                                العنوان الفرعي بالعربية
                               </label>
                               <input
                                 type="text"
                                 dir="rtl"
                                 value={block.title || ""}
                                 onChange={(e) => handleArabicBlockChange(idx, "title", e.target.value)}
-                                className="w-full h-10 px-3 rounded-lg border border-slate-800 bg-slate-950 text-xs text-right font-sans-arabic text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all"
-                                placeholder="اكتب العنوان الفرعي بالعربية هنا..."
+                                placeholder="عنوان القسم الفرعي..."
+                                className="w-full h-11 px-4 rounded-xl border border-slate-800 bg-slate-950 text-white text-sm outline-none focus:border-cyan-500 transition-all text-right"
                               />
                             </div>
 
                             <div>
-                              <label className="block text-xs font-semibold mb-1 text-slate-400 text-right">
-                                النص بالعربية (Paragraph Text)
+                              <label className="block text-xs font-medium text-slate-400 mb-1 text-right">
+                                المحتوى والشرح بالعربية
                               </label>
                               <textarea
-                                rows={5}
+                                rows={4}
                                 dir="rtl"
                                 value={block.text || ""}
                                 onChange={(e) => handleArabicBlockChange(idx, "text", e.target.value)}
-                                className="w-full px-3 py-2 rounded-lg border border-slate-800 bg-slate-950 text-xs text-right font-sans-arabic text-white outline-none focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 transition-all resize-y"
-                                placeholder="اكتب محتوى الفقرة بالعربية هنا..."
+                                placeholder="اكتب محتوى القسم هنا..."
+                                className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 text-white text-sm outline-none focus:border-cyan-500 transition-all text-right leading-relaxed"
                               />
                             </div>
                           </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
+              )}
+            </div>
+
+            {/* 3. STICKY FOOTER ACTION BAR */}
+            <div className="px-8 py-4 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex justify-between items-center z-10 flex-shrink-0">
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span
+                  className={`w-2 h-2 rounded-full ${category === "personal" ? "bg-purple-400" : "bg-cyan-400"
+                    }`}
+                />
+                <span className="capitalize">{category} Mode</span>
+                <span>•</span>
+                <span>{blocksEn.length} Content Block(s)</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsFormModalOpen(false)}
+                  disabled={formLoading}
+                  className="px-5 py-2.5 rounded-xl border border-slate-800 bg-slate-950 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={formLoading}
+                  className="px-7 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold transition-all shadow-[0_4px_25px_rgba(6,182,212,0.4)] hover:shadow-[0_4px_30px_rgba(6,182,212,0.6)] cursor-pointer flex items-center gap-2 active:scale-95 disabled:opacity-50"
+                >
+                  {formLoading ? (
+                    <>
+                      <span className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                      <span>Saving Article...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckIcon className="w-4 h-4" />
+                      <span>{isEditing ? "Update Article" : "Publish Article"}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* ─────────────────────────────────────────────────────────────────────────────
+          QUICK ARABIC TRANSLATION LINKING MODAL
+      ───────────────────────────────────────────────────────────────────────────── */}
+      <Modal
+        isOpen={isTranslateModalOpen}
+        onClose={() => setIsTranslateModalOpen(false)}
+        showCloseButton={false}
+        className="w-full max-w-3xl mx-auto bg-slate-900 border border-slate-800 rounded-3xl flex flex-col max-h-[88vh] overflow-hidden shadow-2xl"
+      >
+        {modalLoading ? (
+          <div className="py-20 text-center text-slate-400 space-y-3">
+            <span className="w-8 h-8 rounded-full border-3 border-emerald-500 border-t-transparent animate-spin inline-block"></span>
+            <p className="text-sm font-medium">Loading content mappings...</p>
+          </div>
+        ) : (
+          <form onSubmit={handleTranslateSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+            <div className="px-8 py-5 border-b border-slate-800 bg-slate-900/90 flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                  <LanguageIcon className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Link Arabic Translation</h3>
+                  <p className="text-xs text-slate-400">Article #{editingId}</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsTranslateModalOpen(false)}
+                className="w-8 h-8 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer"
+              >
+                <XMarkIcon className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-950/40 custom-scrollbar" dir="rtl">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-2 text-right">
+                  العنوان بالعربية
+                </label>
+                <input
+                  type="text"
+                  dir="rtl"
+                  value={titleAr}
+                  onChange={(e) => handleFieldChange("title_ar", e.target.value, setTitleAr)}
+                  className="w-full h-11 px-4 rounded-xl border border-slate-800 bg-slate-950 text-white text-sm outline-none focus:border-emerald-500 transition-all text-right"
+                  placeholder="العنوان باللغة العربية"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 mb-2 text-right">
+                  المختصر بالعربية
+                </label>
+                <textarea
+                  rows={3}
+                  dir="rtl"
+                  value={excerptAr}
+                  onChange={(e) => handleFieldChange("excerpt_ar", e.target.value, setExcerptAr)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-800 bg-slate-950 text-white text-sm outline-none focus:border-emerald-500 transition-all text-right leading-relaxed"
+                  placeholder="الوصف المختصر للمقال بالعربية..."
+                />
+              </div>
+
+              <div className="space-y-4 pt-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                  ترجمة أقسام المقال
+                </h4>
+                {blocksAr.map((block, idx) => (
+                  <div key={idx} className="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+                    <span className="text-xs font-bold text-emerald-400">القسم #{idx + 1}</span>
+                    <input
+                      type="text"
+                      dir="rtl"
+                      value={block.title || ""}
+                      onChange={(e) => handleArabicBlockChange(idx, "title", e.target.value)}
+                      placeholder="العنوان الفرعي بالعربية..."
+                      className="w-full h-10 px-3.5 rounded-lg border border-slate-800 bg-slate-950 text-white text-xs outline-none focus:border-emerald-500 text-right"
+                    />
+                    <textarea
+                      rows={3}
+                      dir="rtl"
+                      value={block.text || ""}
+                      onChange={(e) => handleArabicBlockChange(idx, "text", e.target.value)}
+                      placeholder="نص القسم بالعربية..."
+                      className="w-full p-3 rounded-lg border border-slate-800 bg-slate-950 text-white text-xs outline-none focus:border-emerald-500 text-right leading-relaxed"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
 
-            {/* FIXED FOOTER */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-slate-800 p-6 flex-shrink-0 bg-slate-900">
-              <Button
+            <div className="px-8 py-4 bg-slate-900 border-t border-slate-800 flex justify-end gap-3">
+              <button
                 type="button"
-                variant="outline"
                 onClick={() => setIsTranslateModalOpen(false)}
-                disabled={formLoading}
+                className="px-5 py-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-300 text-xs font-semibold cursor-pointer"
               >
                 Cancel
-              </Button>
-              <Button type="submit" disabled={formLoading}>
-                {formLoading ? "Linking Translation..." : "Link Arabic Translation"}
-              </Button>
+              </button>
+              <button
+                type="submit"
+                disabled={formLoading}
+                className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-lg shadow-emerald-600/30 cursor-pointer"
+              >
+                {formLoading ? "Saving..." : "Save Translation"}
+              </button>
             </div>
           </form>
         )}
@@ -1714,9 +1967,3 @@ export default function AdminArticlesPage() {
     </div>
   );
 }
-
-const TrashIcon = ({ className = "w-4 h-4" }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-  </svg>
-);
