@@ -40,7 +40,9 @@ export default async function Blog() {
       }
     }
   } catch (error) {
-    console.error("Failed to fetch articles:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.warn("Failed to fetch articles:", error);
+    }
   }
 
   return <BlogsClientPage articles={articles} />;

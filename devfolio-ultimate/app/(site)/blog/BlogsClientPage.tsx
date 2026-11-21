@@ -47,7 +47,9 @@ export default function BlogsClientPage({
           }
         }
       } catch (err) {
-        console.error("Failed to fetch translation:", err);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Failed to fetch translation:", err);
+        }
       } finally {
         setLoading(false);
       }

@@ -122,7 +122,9 @@ export default function Footer() {
           }
         }
       } catch (err) {
-        console.error("Failed to fetch footer social links:", err);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Failed to fetch footer social links:", err);
+        }
       }
     };
     fetchSocialLinks();
@@ -138,30 +140,32 @@ export default function Footer() {
             <Link
               href="/"
               className="text-xl block dark:hidden font-bold text-primary"
+              aria-label="The Forge Homepage"
             >
               <Image
                 src="/logo/light-logo.webp"
                 width={130}
                 height={80}
-                alt="the Forge Logo"
+                alt="The Forge Logo"
                 className="w-28 sm:w-36 h-auto object-contain hue-rotate-[190deg] brightness-150 contrast-125 transition-all duration-500 animate-pulse drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
               />
             </Link>
             <Link
               href="/"
               className="text-xl hidden dark:block font-bold text-primary"
+              aria-label="The Forge Homepage"
             >
               <Image
                 src="/logo/dark-logo.webp"
                 width={130}
                 height={80}
-                alt="the Forge Logo"
+                alt="The Forge Logo"
                 className="w-28 sm:w-36 h-auto object-contain hue-rotate-[190deg] brightness-150 contrast-125 transition-all duration-500 animate-pulse drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
               />
             </Link>
-            <p className="text-sm text-center md:text-left text-secondary mt-2">
+            <p className="text-sm text-center md:text-left text-slate-400 mt-2">
               © {new Date().getFullYear()} Khaled Hesham{" "}
-              <span className="text-primary">The Forge</span>. All rights
+              <span className="text-cyan-400 font-medium">The Forge</span>. All rights
               reserved.
             </p>
           </div>
@@ -175,9 +179,10 @@ export default function Footer() {
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-secondary hover:text-primary transition-colors"
+                  className="text-slate-400 hover:text-cyan-400 transition-colors"
+                  aria-label={`Visit ${link.platform}`}
                 >
-                  <Icon className="h-6 w-6" />
+                  <Icon className="h-6 w-6" aria-hidden="true" />
                 </a>
               );
             })}

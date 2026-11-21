@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { FaCalendarAlt, FaClock, FaEye, FaHeart, FaArrowRight } from "react-icons/fa";
 import { motion } from "framer-motion";
 import { fadeInUp, staggerContainer, cardHoverSmall } from "@/utils/animations";
@@ -78,7 +79,7 @@ export default function Blogs({ data }: { data: any }) {
           </motion.h2>
 
           <motion.p
-            className="text-sm sm:text-base text-slate-400 mt-2.5 leading-relaxed"
+            className="text-sm sm:text-base text-slate-300 mt-2.5 leading-relaxed"
             {...fadeInUp}
             transition={{ delay: 0.15 }}
           >
@@ -108,49 +109,52 @@ export default function Blogs({ data }: { data: any }) {
                 <Link
                   href={`/blog/${blog.slug}`}
                   className="block relative aspect-[16/10] w-full overflow-hidden bg-slate-950/80 border-b border-slate-800/60 flex-shrink-0"
+                  aria-label={`Read article: ${blog.title}`}
                 >
-                  <img
+                  <Image
                     src={resolveImageUrl(blog.feature_image)}
                     alt={blog.title}
-                    className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
+                    fill
+                    className="object-cover group-hover:scale-105 transition-transform duration-500"
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   />
                 </Link>
 
                 <div className="p-5 sm:p-6 flex flex-col flex-1">
                   {/* Title: Standardized Height & Typography */}
-                  <Link href={`/blog/${blog.slug}`}>
+                  <Link href={`/blog/${blog.slug}`} aria-label={`Read article: ${blog.title}`}>
                     <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-sky-300 transition-colors line-clamp-2 h-14 flex items-center mb-2 leading-snug">
                       {blog.title}
                     </h3>
                   </Link>
 
                   {/* Excerpt: Standardized 2-line 40px Box */}
-                  <p className="text-sm text-slate-400 leading-relaxed line-clamp-2 h-10 mb-4">
+                  <p className="text-sm text-slate-300 leading-relaxed line-clamp-2 h-10 mb-4">
                     {blog.excerpt}
                   </p>
                 </div>
               </div>
 
               {/* Card Footer Metadata: Standardized Typography & 14px Icons */}
-              <div className="px-5 sm:px-6 pb-5 pt-3.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 gap-2 mt-auto">
+              <div className="px-5 sm:px-6 pb-5 pt-3.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-300 gap-2 mt-auto">
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-1.5">
-                    <FaCalendarAlt className="h-3.5 w-3.5 text-sky-400/80" />
+                    <FaCalendarAlt className="h-3.5 w-3.5 text-sky-400" aria-hidden="true" />
                     <span>{new Date(blog.date).toLocaleDateString()}</span>
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <FaClock className="h-3.5 w-3.5 text-slate-500" />
+                    <FaClock className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
                     <span>{blog.readTime}</span>
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2.5">
                   <span className="flex items-center gap-1">
-                    <FaEye className="h-3.5 w-3.5 text-slate-500" />
+                    <FaEye className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
                     <span>{blog.views}</span>
                   </span>
                   <span className="flex items-center gap-1">
-                    <FaHeart className="h-3.5 w-3.5 text-rose-500" />
+                    <FaHeart className="h-3.5 w-3.5 text-rose-500" aria-hidden="true" />
                     <span>{blog.likes}</span>
                   </span>
                 </div>

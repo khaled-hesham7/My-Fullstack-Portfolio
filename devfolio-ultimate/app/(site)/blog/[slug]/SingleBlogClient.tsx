@@ -148,7 +148,9 @@ const SingleBlogClient = ({ blogPost }: SingleBlogClientProps) => {
         }
       }
     } catch (err) {
-      console.error("Failed to toggle like:", err);
+      if (process.env.NODE_ENV === "development") {
+        console.warn("Failed to toggle like:", err);
+      }
     } finally {
       setLikeLoading(false);
     }
@@ -227,7 +229,9 @@ const SingleBlogClient = ({ blogPost }: SingleBlogClientProps) => {
           }
         }
       } catch (err) {
-        console.error("Failed to fetch translation:", err);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Failed to fetch translation:", err);
+        }
       } finally {
         setLoading(false);
       }

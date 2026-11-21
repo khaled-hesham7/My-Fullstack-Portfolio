@@ -42,7 +42,9 @@ export default async function AboutPage() {
       }
     }
   } catch (error) {
-    console.error("Failed to fetch portfolio data:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.warn("Failed to fetch portfolio data:", error);
+    }
   }
 
   return <AboutClient data={data} />;

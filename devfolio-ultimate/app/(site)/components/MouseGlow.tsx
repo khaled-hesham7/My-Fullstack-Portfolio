@@ -5,6 +5,10 @@ export default function MouseGlow() {
   const glowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (typeof window !== "undefined" && (window.innerWidth < 1024 || window.matchMedia("(pointer: coarse)").matches)) {
+      return;
+    }
+
     let rafId: number | null = null;
     let mouseX = -1000;
     let mouseY = -1000;

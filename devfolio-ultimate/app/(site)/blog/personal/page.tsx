@@ -41,7 +41,9 @@ export default async function PersonalBlog() {
       }
     }
   } catch (error) {
-    console.error("Failed to fetch personal articles:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.warn("Failed to fetch personal articles:", error);
+    }
   }
 
   return <BlogsClientPage articles={articles} category="personal" />;

@@ -60,6 +60,11 @@ export default function ScatteredBackdrop() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Avoid running computations and mounting DOM nodes on mobile where backdrop is hidden
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      return;
+    }
+
     setMounted(true);
 
     const generated: BackdropItem[] = [];

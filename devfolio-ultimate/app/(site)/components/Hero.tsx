@@ -176,7 +176,7 @@ function MiniTerminal({ data }: { data: any }) {
           <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]"></span>
           <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]"></span>
         </div>
-        <span className="text-[10px] text-gray-500 font-sans font-medium">bash - local</span>
+        <span className="text-[10px] text-slate-400 font-sans font-medium">bash - local</span>
       </div>
       
       {/* Console Area */}
@@ -222,7 +222,9 @@ export default function Hero({ data }: { data: any }) {
           }
         }
       } catch (err) {
-        console.error("Failed to load CVs in Hero:", err);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Could not load CVs dynamically:", err);
+        }
       }
     };
     fetchCvs();
@@ -315,9 +317,11 @@ export default function Hero({ data }: { data: any }) {
                   <div className="w-full h-full rounded-full bg-deep-dark overflow-hidden relative z-10">
                     <Image
                       src={resolveImageUrl(profile?.image_url)}
-                      alt="Profile"
+                      alt={profile?.name ? `${profile.name} profile photo` : "Profile photo"}
                       width={144}
                       height={144}
+                      priority
+                      fetchPriority="high"
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -350,7 +354,7 @@ export default function Hero({ data }: { data: any }) {
             </motion.h2>
  
             <motion.p
-              className="text-base sm:text-lg text-gray-600 dark:text-description max-w-2xl mb-8 leading-relaxed min-h-[36px] flex items-center justify-center lg:justify-start"
+              className="text-base sm:text-lg text-slate-300 max-w-2xl mb-8 leading-relaxed min-h-[36px] flex items-center justify-center lg:justify-start"
             >
               <span>{typedText}</span>
               <span className="inline-block w-[2px] h-5 bg-[#4e80f7] dark:bg-sky-blue ml-1.5 animate-pulse" />
@@ -441,13 +445,13 @@ export default function Hero({ data }: { data: any }) {
                         href={link.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xl sm:text-2xl text-gray-400 hover:text-primary dark:text-gray-300 dark:hover:text-primary transition-colors"
+                        className="text-xl sm:text-2xl text-slate-300 hover:text-cyan-400 transition-colors"
                         whileHover={{ scale: 1.15 }}
                         whileTap={{ scale: 0.95 }}
-                        title={link.platform}
-                        aria-label={link.platform}
+                        title={link.platform || "Social Profile"}
+                        aria-label={`Visit Khaled on ${link.platform || "Social Media"}`}
                       >
-                        <Icon />
+                        <Icon aria-hidden="true" />
                       </motion.a>
                     );
                   });

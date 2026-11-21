@@ -43,7 +43,9 @@ export default async function Home() {
       }
     }
   } catch (error) {
-    console.error("Failed to fetch home page data:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.warn("Failed to fetch home page data:", error);
+    }
   }
 
   return (

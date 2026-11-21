@@ -15,7 +15,9 @@ async function fetchBlogPost(slugOrId: string) {
       }
     }
   } catch (error) {
-    console.error("Failed to fetch blog post:", error);
+    if (process.env.NODE_ENV === "development") {
+      console.warn("Failed to fetch blog post:", error);
+    }
   }
   return null;
 }

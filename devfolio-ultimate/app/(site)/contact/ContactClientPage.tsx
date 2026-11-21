@@ -68,7 +68,9 @@ export default function ContactClientPage() {
           }
         }
       } catch (err) {
-        console.error("Failed to load contact settings:", err);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Failed to load contact settings:", err);
+        }
       }
     };
     fetchSettings();

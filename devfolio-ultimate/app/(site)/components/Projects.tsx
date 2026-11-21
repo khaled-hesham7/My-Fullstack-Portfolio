@@ -41,6 +41,7 @@ function ProjectCard({ project }: { project: Project }) {
         <Link
           href={`/projects/${project.id}`}
           className="block relative aspect-[16/10] w-full mb-4 rounded-xl overflow-hidden border border-slate-800/60 bg-slate-950/80 group-hover:border-cyan-500/30 transition-colors flex-shrink-0"
+          aria-label={`View details for ${project.title}`}
         >
           <motion.div
             className="w-full h-full relative"
@@ -63,7 +64,7 @@ function ProjectCard({ project }: { project: Project }) {
         </h3>
 
         {/* Description: Standardized 2-line 40px Box for Equal Card Height */}
-        <p className="text-sm text-slate-400 leading-relaxed line-clamp-2 h-10 mb-4">
+        <p className="text-sm text-slate-300 leading-relaxed line-clamp-2 h-10 mb-4">
           {displayedDesc}
         </p>
 
@@ -93,9 +94,10 @@ function ProjectCard({ project }: { project: Project }) {
               href={project.githubLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors"
+              className="inline-flex items-center gap-1.5 text-slate-300 hover:text-white transition-colors"
+              aria-label={`Source code for ${project.title}`}
             >
-              <FaGithub className="h-3.5 w-3.5" />
+              <FaGithub className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Code</span>
             </a>
           )}
@@ -104,9 +106,10 @@ function ProjectCard({ project }: { project: Project }) {
               href={project.demoLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-slate-400 hover:text-cyan-400 transition-colors"
+              className="inline-flex items-center gap-1.5 text-slate-300 hover:text-cyan-400 transition-colors"
+              aria-label={`Live demo for ${project.title}`}
             >
-              <FaExternalLinkAlt className="h-3.5 w-3.5" />
+              <FaExternalLinkAlt className="h-3.5 w-3.5" aria-hidden="true" />
               <span>Live Demo</span>
             </a>
           )}
@@ -115,9 +118,10 @@ function ProjectCard({ project }: { project: Project }) {
         <Link
           href={`/projects/${project.id}`}
           className="inline-flex items-center gap-1 font-semibold text-cyan-400 hover:text-cyan-300 transition-colors group/link ml-auto"
+          aria-label={`Project details for ${project.title}`}
         >
           <span>Details</span>
-          <FaArrowRight className="text-[11px] group-hover/link:translate-x-0.5 transition-transform" />
+          <FaArrowRight className="text-[11px] group-hover/link:translate-x-0.5 transition-transform" aria-hidden="true" />
         </Link>
       </div>
     </motion.article>
@@ -178,7 +182,9 @@ export default function Projects({ data: initialData }: { data?: any }) {
           }
         }
       } catch (err) {
-        console.error("Failed to load projects dynamically:", err);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Failed to load projects dynamically:", err);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -226,7 +232,7 @@ export default function Projects({ data: initialData }: { data?: any }) {
           </motion.h2>
 
           <motion.p
-            className="text-sm sm:text-base text-slate-400 mt-2.5 leading-relaxed"
+            className="text-sm sm:text-base text-slate-300 mt-2.5 leading-relaxed"
             {...fadeInUp}
             transition={{ delay: 0.15 }}
           >

@@ -164,7 +164,9 @@ export default function ProjectsClientPage() {
           }
         }
       } catch (err) {
-        console.error("Failed to load projects:", err);
+        if (process.env.NODE_ENV === "development") {
+          console.warn("Failed to load projects:", err);
+        }
       } finally {
         setIsLoading(false);
       }
