@@ -36,7 +36,7 @@ import {
   SiCodewars,
   SiHackerearth
 } from "react-icons/si";
-import { getApiBaseUrl } from "@/lib/utils";
+import { getApiBaseUrl, isClientFetchAllowed } from "@/lib/utils";
 
 interface SocialLinkItem {
   id: number;
@@ -105,12 +105,20 @@ const getSocialIcon = (platform: string) => {
   }
 };
 
-const fallbackLinks: SocialLinkItem[] = [];
+const fallbackLinks: SocialLinkItem[] = [
+  { id: 1, platform: "github", url: "https://github.com/khaled-hesham7" },
+  { id: 2, platform: "linkedin", url: "https://www.linkedin.com/in/khaled-hesham-031a08233/" },
+  { id: 3, platform: "twitter", url: "https://twitter.com/Heshamdev" },
+];
 
 export default function Footer() {
   const [socialLinks, setSocialLinks] = useState<SocialLinkItem[]>([]);
 
   useEffect(() => {
+    if (!isClientFetchAllowed()) {
+      return;
+    }
+
     const fetchSocialLinks = async () => {
       try {
         const apiBase = getApiBaseUrl();

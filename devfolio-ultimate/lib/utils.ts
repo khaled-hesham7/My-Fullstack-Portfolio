@@ -31,6 +31,24 @@ export function getApiBaseUrl(): string {
 }
 
 /**
+ * Determines if a client-side fetch should be attempted.
+ * In a deployed/production environment (e.g. Vercel), fetching from a localhost/127.0.0.1
+ * URL will trigger net::ERR_CONNECTION_REFUSED browser console errors.
+ * This helper avoids firing doomed local requests when running on a live domain.
+ */
+export function isClientFetchAllowed(): boolean {
+  if (typeof window === "undefined") return true;
+  const raw = process.env.NEXT_PUBLIC_API_URL || "";
+  const isLocalHost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  if (!isLocalHost) {
+    if (!raw || raw.includes("localhost") || raw.includes("127.0.0.1")) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Resolves image/media URLs returned by the Laravel backend (Spatie Media Library)
  * into fully-qualified, browser-safe absolute URLs.
  *

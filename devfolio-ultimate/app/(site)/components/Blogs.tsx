@@ -22,6 +22,19 @@ interface ArticleData {
   };
 }
 
+const FALLBACK_ARTICLES = [
+  {
+    title: "Closure Demystified: The Behind-the-Scenes JavaScript You Don't See",
+    excerpt: "Learn the concept of Closure in JavaScript in a simple and practical way. A detailed explanation with real-life examples.",
+    date: new Date().toISOString(),
+    readTime: "5 min read",
+    slug: "1",
+    feature_image: "/images/Closure_JS.png",
+    views: 124,
+    likes: 38,
+  },
+];
+
 export default function Blogs({ data }: { data: any }) {
   const rawArticles =
     (data &&
@@ -32,22 +45,16 @@ export default function Blogs({ data }: { data: any }) {
         : data.Article?.data || data.articles?.data)) ||
     [];
 
-  if (rawArticles.length === 0) {
-    return null;
-  }
-
-  const blogsToRender = rawArticles.slice(0, 3).map((art: ArticleData) => {
-    return {
-      title: art.title,
-      excerpt: art.excerpt,
-      date: art.date?.raw || new Date().toISOString(),
-      readTime: "5 min read",
-      slug: art.id.toString(),
-      feature_image: resolveImageUrl(art.feature_image, "/images/placeholder.jpg"),
-      views: art.stats?.views || 0,
-      likes: art.stats?.likes || 0,
-    };
-  });
+  const blogsToRender = (rawArticles.length > 0 ? rawArticles.slice(0, 3).map((art: ArticleData) => ({
+    title: art.title,
+    excerpt: art.excerpt,
+    date: art.date?.raw || new Date().toISOString(),
+    readTime: "5 min read",
+    slug: art.id.toString(),
+    feature_image: resolveImageUrl(art.feature_image, "/images/placeholder.jpg"),
+    views: art.stats?.views || 0,
+    likes: art.stats?.likes || 0,
+  })) : FALLBACK_ARTICLES);
 
   // Grid layout adapts perfectly based on article count
   const gridLayoutClass =

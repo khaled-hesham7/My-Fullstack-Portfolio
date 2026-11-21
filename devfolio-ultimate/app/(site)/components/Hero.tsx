@@ -41,7 +41,7 @@ import {
 } from "react-icons/si";
 import { motion } from "framer-motion";
 import { fadeInUp, fadeIn, scaleIn } from "@/utils/animations";
-import { resolveImageUrl, getApiBaseUrl } from "@/lib/utils";
+import { resolveImageUrl, getApiBaseUrl, isClientFetchAllowed } from "@/lib/utils";
 
 const getSocialIcon = (platform: string) => {
   switch (platform.toLowerCase()) {
@@ -104,6 +104,29 @@ const getSocialIcon = (platform: string) => {
   }
 };
 
+const DEFAULT_SKILLS = `~/the-forge $ php artisan developer:info --backend
+> Loading developer profile...
+~/the-forge $ cat Developer.php
+<?php
+namespace App\\Profile;
+
+class KhaledHesham extends BackendDeveloper {
+  public array $stack = ['PHP', 'Laravel', 'MySQL'];
+  public array $strengths = ['RESTful APIs', 'Unit Testing', 'Clean Architecture'];
+
+  public function craft(): string {
+    return 'Building high-performance, robust software...';
+  }
+}`;
+
+const DEFAULT_TYPEWRITER = "Backend Developer & Software Engineer, Building robust web applications with PHP & Laravel, Crafting scalable RESTful APIs & Clean Architecture";
+
+const DEFAULT_SOCIAL_LINKS = [
+  { id: 1, platform: "github", url: "https://github.com/khaled-hesham7" },
+  { id: 2, platform: "linkedin", url: "https://www.linkedin.com/in/khaled-hesham-031a08233/" },
+  { id: 3, platform: "twitter", url: "https://twitter.com/Heshamdev" },
+];
+
 function MiniTerminal({ data }: { data: any }) {
   const profile = data?.profile;
   const [displayedLines, setDisplayedLines] = useState<string[]>([]);
@@ -118,12 +141,8 @@ function MiniTerminal({ data }: { data: any }) {
   }, []);
 
   useEffect(() => {
-    if (!profile?.skills) {
-      setDisplayedLines([]);
-      setCurrentLineTyping("");
-      return;
-    }
-    const lines = profile.skills.split("\n");
+    const skillsText = profile?.skills || DEFAULT_SKILLS;
+    const lines = skillsText.split("\n");
     let active = true;
 
     const runTerminalSimulation = async () => {
@@ -211,6 +230,9 @@ export default function Hero({ data }: { data: any }) {
       setCvList(data.cvs);
       return;
     }
+    if (!isClientFetchAllowed()) {
+      return;
+    }
     const fetchCvs = async () => {
       try {
         const apiBase = getApiBaseUrl();
@@ -241,9 +263,8 @@ export default function Hero({ data }: { data: any }) {
   }, []);
 
   useEffect(() => {
-    const texts = profile?.typewriter_text
-      ? profile.typewriter_text.split(/\r?\n|,|&&|;/).map((s: string) => s.trim()).filter(Boolean)
-      : [];
+    const rawTypewriter = profile?.typewriter_text || DEFAULT_TYPEWRITER;
+    const texts = rawTypewriter.split(/\r?\n|,|&&|;/).map((s: string) => s.trim()).filter(Boolean);
     
     if (texts.length === 0) {
       setTypedText("");
@@ -341,7 +362,7 @@ export default function Hero({ data }: { data: any }) {
                 {...fadeIn}
                 transition={{ delay: 0.8 }}
               >
-                {profile?.name || ""}
+                {profile?.name || "Khaled Hesham"}
               </motion.span>
             </motion.h1>
  
@@ -350,7 +371,7 @@ export default function Hero({ data }: { data: any }) {
               {...fadeInUp}
               transition={{ delay: 0.4 }}
             >
-              {profile?.description || ""}
+              {profile?.description || "Backend Developer & Software Engineer"}
             </motion.h2>
  
             <motion.p
@@ -431,12 +452,12 @@ export default function Hero({ data }: { data: any }) {
               {/* Social Links */}
               <div className="flex items-center gap-3">
                 {(() => {
-                  const links = Array.isArray(data?.SocialLink)
+                  const rawLinks = Array.isArray(data?.SocialLink)
                     ? data.SocialLink
                     : Array.isArray(data?.social_links)
                     ? data.social_links
-                    : data?.SocialLink?.data || data?.social_links?.data || [];
-                  if (!links || links.length === 0) return null;
+                    : data?.SocialLink?.data || data?.social_links?.data;
+                  const links = Array.isArray(rawLinks) && rawLinks.length > 0 ? rawLinks : DEFAULT_SOCIAL_LINKS;
                   return links.map((link: any) => {
                     const Icon = getSocialIcon(link.platform);
                     return (

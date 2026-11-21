@@ -3,6 +3,8 @@ import "../../globals.css";
 import { generateSEO } from "@/utils/seo";
 import AdminLayoutClient from "./AdminLayoutClient";
 import ProtectedProvider from "../../components/ProtectedProvider";
+import { SidebarProvider } from "@/app/context/SidebarContext";
+import { ThemeContextProvider } from "@/app/context/ThemeContext";
 
 export const metadata = generateSEO({
   title: "Admin Dashboard | Khaled Hesham",
@@ -26,8 +28,12 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ProtectedProvider>
-      <AdminLayoutClient>{children}</AdminLayoutClient>
-    </ProtectedProvider>
+    <ThemeContextProvider>
+      <SidebarProvider>
+        <ProtectedProvider>
+          <AdminLayoutClient>{children}</AdminLayoutClient>
+        </ProtectedProvider>
+      </SidebarProvider>
+    </ThemeContextProvider>
   );
 }

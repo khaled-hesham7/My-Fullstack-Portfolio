@@ -212,8 +212,8 @@ export default function BlogsClientPage({
                   <div className="absolute top-3 left-3 rtl:left-auto rtl:right-3 z-10">
                     <span
                       className={`inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-semibold rounded-full backdrop-blur-md shadow-md ${isArtPersonal
-                          ? "bg-purple-950/80 text-purple-200 border border-purple-500/40 shadow-purple-950/50"
-                          : "bg-slate-950/80 text-cyan-300 border border-cyan-500/40 shadow-cyan-950/50"
+                        ? "bg-purple-950/80 text-purple-200 border border-purple-500/40 shadow-purple-950/50"
+                        : "bg-slate-950/80 text-cyan-300 border border-cyan-500/40 shadow-cyan-950/50"
                         }`}
                     >
                       {isArtPersonal ? <FaPenNib className="text-[10px]" /> : <FaLaptopCode className="text-[10px]" />}

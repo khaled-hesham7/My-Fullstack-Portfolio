@@ -1,5 +1,3 @@
-import { ThemeContextProvider } from "./context/ThemeContext";
-import { SidebarProvider } from "./context/SidebarContext";
 import type { Metadata } from "next";
 import { Outfit } from "next/font/google";
 
@@ -7,7 +5,6 @@ const outfit = Outfit({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-outfit",
-  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -59,9 +56,7 @@ export default function RootLayout({
       <body
         className={`${outfit.className} bg-[#030712] dark:bg-deep-dark text-slate-100 font-sans antialiased selection:bg-cyan-500/20 selection:text-cyan-300 min-h-screen`}
       >
-        <ThemeContextProvider>
-          <SidebarProvider>{children}</SidebarProvider>
-        </ThemeContextProvider>
+        {children}
       </body>
     </html>
   );

@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { FaGithub, FaExternalLinkAlt, FaArrowRight } from 'react-icons/fa'
 import { motion } from 'framer-motion'
 import { fadeInUp, staggerContainer, cardHoverSmall } from '@/utils/animations'
-import { resolveImageUrl, getApiBaseUrl } from '@/lib/utils'
+import { resolveImageUrl, getApiBaseUrl, isClientFetchAllowed } from '@/lib/utils'
 
 const MAX_DESC_LENGTH = 120;
 
@@ -19,6 +19,36 @@ interface Project {
   githubLink: string;
   demoLink: string;
 }
+
+const FALLBACK_PROJECTS: Project[] = [
+  {
+    id: 1,
+    title: "Sirrush Software Solutions",
+    description: "Enterprise software architecture and scalable backend services with Laravel and MySQL.",
+    image: "/projects/e-commerce-website.png",
+    technologies: ["PHP", "Laravel", "MySQL", "REST API"],
+    githubLink: "https://github.com/khaled-hesham7",
+    demoLink: "#",
+  },
+  {
+    id: 2,
+    title: "The Forge Portfolio System",
+    description: "High-performance full-stack web application with Next.js 15, React 19, and Tailwind CSS.",
+    image: "/projects/portfolio-website.jpg",
+    technologies: ["Next.js", "TypeScript", "Tailwind", "Docker"],
+    githubLink: "https://github.com/khaled-hesham7/My-Fullstack-Portfolio",
+    demoLink: "https://the-forge-one.vercel.app",
+  },
+  {
+    id: 3,
+    title: "Task & Expense Management API",
+    description: "Robust RESTful backend with token authentication, caching layer, and automated tests.",
+    image: "/projects/task-manager.webp",
+    technologies: ["Laravel", "Sanctum", "Redis", "PHPUnit"],
+    githubLink: "https://github.com/khaled-hesham7",
+    demoLink: "#",
+  },
+];
 
 function ProjectCard({ project }: { project: Project }) {
   const isLong = (project.description || "").length > MAX_DESC_LENGTH;
@@ -155,6 +185,12 @@ export default function Projects({ data: initialData }: { data?: any }) {
       }
     }
 
+    if (!isClientFetchAllowed()) {
+      setProjectsToRender(FALLBACK_PROJECTS);
+      setIsLoading(false);
+      return;
+    }
+
     const fetchProjects = async () => {
       try {
         const apiBase = getApiBaseUrl();
@@ -178,13 +214,16 @@ export default function Projects({ data: initialData }: { data?: any }) {
             }));
             setProjectsToRender(mapped);
           } else {
-            setProjectsToRender([]);
+            setProjectsToRender(FALLBACK_PROJECTS);
           }
+        } else {
+          setProjectsToRender(FALLBACK_PROJECTS);
         }
       } catch (err) {
         if (process.env.NODE_ENV === "development") {
           console.warn("Failed to load projects dynamically:", err);
         }
+        setProjectsToRender(FALLBACK_PROJECTS);
       } finally {
         setIsLoading(false);
       }
