@@ -57,12 +57,12 @@ export default function Blogs({ data }: { data: any }) {
       : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto";
 
   return (
-    <section className="py-24 relative">
-      <div className="container max-w-7xl mx-auto px-4">
+    <section className="py-20 sm:py-24 relative">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-14">
+        <div className="text-center max-w-2xl mx-auto mb-12 sm:mb-14">
           <motion.div
-            className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-sky-400 text-[11px] font-bold uppercase tracking-widest mb-3"
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-sky-400 text-xs font-semibold uppercase tracking-wider mb-3"
             {...fadeInUp}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse" />
@@ -70,7 +70,7 @@ export default function Blogs({ data }: { data: any }) {
           </motion.div>
 
           <motion.h2
-            className="text-3xl md:text-4xl font-extrabold text-white tracking-tight"
+            className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight"
             {...fadeInUp}
             transition={{ delay: 0.1 }}
           >
@@ -78,7 +78,7 @@ export default function Blogs({ data }: { data: any }) {
           </motion.h2>
 
           <motion.p
-            className="text-sm text-slate-400 mt-2.5 leading-relaxed"
+            className="text-sm sm:text-base text-slate-400 mt-2.5 leading-relaxed"
             {...fadeInUp}
             transition={{ delay: 0.15 }}
           >
@@ -86,7 +86,7 @@ export default function Blogs({ data }: { data: any }) {
           </motion.p>
         </div>
 
-        {/* Dynamic Balanced Cards Grid */}
+        {/* Dynamic Balanced Cards Grid with Standardized Equal Heights */}
         <motion.div
           className={`${gridLayoutClass} gap-6 sm:gap-8 items-stretch`}
           variants={staggerContainer}
@@ -103,11 +103,11 @@ export default function Blogs({ data }: { data: any }) {
               {/* Subtle hover background sheen */}
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-              <div>
-                {/* Feature Image */}
+              <div className="flex flex-col flex-1">
+                {/* Feature Image with Standardized 16/10 Ratio */}
                 <Link
                   href={`/blog/${blog.slug}`}
-                  className="block relative aspect-video w-full overflow-hidden bg-slate-950/80 border-b border-slate-800/60"
+                  className="block relative aspect-[16/10] w-full overflow-hidden bg-slate-950/80 border-b border-slate-800/60 flex-shrink-0"
                 >
                   <img
                     src={resolveImageUrl(blog.feature_image)}
@@ -116,39 +116,41 @@ export default function Blogs({ data }: { data: any }) {
                   />
                 </Link>
 
-                <div className="p-5">
+                <div className="p-5 sm:p-6 flex flex-col flex-1">
+                  {/* Title: Standardized Height & Typography */}
                   <Link href={`/blog/${blog.slug}`}>
-                    <h3 className="text-lg font-bold text-white group-hover:text-sky-300 transition-colors line-clamp-2 min-h-[3.25rem] mb-2 leading-snug">
+                    <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-sky-300 transition-colors line-clamp-2 h-14 flex items-center mb-2 leading-snug">
                       {blog.title}
                     </h3>
                   </Link>
 
-                  <p className="text-xs text-slate-400 leading-relaxed line-clamp-2 min-h-[2.5rem] mb-4">
+                  {/* Excerpt: Standardized 2-line 40px Box */}
+                  <p className="text-sm text-slate-400 leading-relaxed line-clamp-2 h-10 mb-4">
                     {blog.excerpt}
                   </p>
                 </div>
               </div>
 
-              {/* Card Footer Metadata */}
-              <div className="px-5 pb-5 pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between text-[11px] text-slate-400 gap-2 mt-auto">
+              {/* Card Footer Metadata: Standardized Typography & 14px Icons */}
+              <div className="px-5 sm:px-6 pb-5 pt-3.5 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-400 gap-2 mt-auto">
                 <div className="flex items-center gap-3">
                   <span className="flex items-center gap-1.5">
-                    <FaCalendarAlt className="h-3 w-3 text-sky-400/80" />
+                    <FaCalendarAlt className="h-3.5 w-3.5 text-sky-400/80" />
                     <span>{new Date(blog.date).toLocaleDateString()}</span>
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <FaClock className="h-3 w-3 text-slate-500" />
+                    <FaClock className="h-3.5 w-3.5 text-slate-500" />
                     <span>{blog.readTime}</span>
                   </span>
                 </div>
 
                 <div className="flex items-center gap-2.5">
                   <span className="flex items-center gap-1">
-                    <FaEye className="h-3 w-3 text-slate-500" />
+                    <FaEye className="h-3.5 w-3.5 text-slate-500" />
                     <span>{blog.views}</span>
                   </span>
                   <span className="flex items-center gap-1">
-                    <FaHeart className="h-3 w-3 text-rose-500" />
+                    <FaHeart className="h-3.5 w-3.5 text-rose-500" />
                     <span>{blog.likes}</span>
                   </span>
                 </div>
@@ -159,7 +161,7 @@ export default function Blogs({ data }: { data: any }) {
 
         {/* Modern Action Button - Theme Aligned */}
         <motion.div
-          className="text-center mt-14"
+          className="text-center mt-12 sm:mt-14"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}

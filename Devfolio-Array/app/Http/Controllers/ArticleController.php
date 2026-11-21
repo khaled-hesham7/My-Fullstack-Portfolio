@@ -445,10 +445,13 @@ class ArticleController extends Controller
             $liked = true;
         }
 
+        $likesCount = ArticleLike::where('article_id', $id)->count();
+        $article->update(['likes' => $likesCount]);
+
         return $this->successResponse(
             [
                 'liked'       => $liked,
-                'likes_count' => ArticleLike::where('article_id', $id)->count()
+                'likes_count' => $likesCount
             ],
             $liked ? __('messages.article_liked') : __('messages.article_unliked'),
             200

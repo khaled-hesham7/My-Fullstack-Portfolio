@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\CvController;
+use App\Http\Controllers\DashboardStatsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,6 +28,9 @@ Route::get('/Home', [HomeController::class, 'index']);
 Route::get('/home', [HomeController::class, 'index']);
 Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:5,1');
 Route::get('/contact/settings', [ContactController::class, 'getSettings']);
+
+// Dashboard Overview & Statistics
+Route::get('/dashboard/stats', [DashboardStatsController::class, 'index']);
 
 // CVs (Public View)
 Route::get('/cvs', [CvController::class, 'index']);

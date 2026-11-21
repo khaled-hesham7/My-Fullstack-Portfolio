@@ -299,11 +299,11 @@ const SingleBlogClient = ({ blogPost }: SingleBlogClientProps) => {
         );
       case "code":
         return (
-          <div className="relative my-6 rounded-lg shadow-lg">
+          <div className="relative my-6 rounded-xl shadow-lg max-w-full overflow-x-auto custom-scrollbar">
             <SyntaxHighlighter
               language={block.language}
               style={dracula}
-              className="rounded-lg !p-4 !py-6"
+              className="rounded-xl !p-4 !py-6 text-xs sm:text-sm font-mono"
             >
               {block.content}
             </SyntaxHighlighter>

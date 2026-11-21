@@ -365,7 +365,7 @@ export default function AboutClient({ data }: { data: AboutData | null }) {
             </div>
           )}
 
-          <div className="max-w-4xl mx-auto relative border-l-2 border-gray-200 dark:border-tag-border pl-6 space-y-12">
+          <div className="max-w-4xl mx-auto ml-3 sm:mx-auto relative border-l-2 border-gray-200 dark:border-tag-border pl-6 sm:pl-8 space-y-8 sm:space-y-12">
             {filteredExperiences.map((exp) => {
               const expType = exp.type || "Job";
               const isInternship = expType.toLowerCase() === "internship";
@@ -373,7 +373,7 @@ export default function AboutClient({ data }: { data: AboutData | null }) {
               return (
                 <motion.div
                   key={exp.id}
-                  className="relative bg-white dark:bg-dark/50 p-6 rounded-lg shadow-md border border-gray-100 dark:border-tag-border"
+                  className="relative bg-white dark:bg-dark/50 p-4 sm:p-6 rounded-xl shadow-md border border-gray-100 dark:border-tag-border"
                   variants={fadeInUp}
                   initial="initial"
                   whileInView="animate"
@@ -381,7 +381,7 @@ export default function AboutClient({ data }: { data: AboutData | null }) {
                   {...cardHoverSmall}
                 >
                   {/* Timeline Dot */}
-                  <span className={`absolute -left-[35px] top-[26px] flex h-4 w-4 items-center justify-center rounded-full ring-4 ring-white dark:ring-deep-dark ${isInternship ? "bg-purple-500" : "bg-primary"
+                  <span className={`absolute -left-[33px] sm:-left-[41px] top-[22px] flex h-4 w-4 items-center justify-center rounded-full ring-4 ring-white dark:ring-deep-dark ${isInternship ? "bg-purple-500" : "bg-primary"
                     }`}>
                     <span className={`h-2 w-2 rounded-full ${isInternship ? "bg-purple-300" : "bg-cyan-400"}`}></span>
                   </span>

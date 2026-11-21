@@ -32,14 +32,14 @@ function ProjectCard({ project }: { project: Project }) {
 
   return (
     <motion.div
-      className="bg-white dark:bg-dark dark:border dark:border-tag-border rounded-lg shadow-md overflow-hidden flex flex-col"
+      className="bg-white dark:bg-dark dark:border dark:border-tag-border rounded-2xl shadow-md overflow-hidden flex flex-col h-full"
       variants={fadeInUp}
       {...cardHoverSmall}
     >
       {/* Project image */}
       <Link href={`/projects/${project.id}`} className="block flex-shrink-0">
         <motion.div
-          className="aspect-video bg-gray-200 dark:bg-gray-800 relative overflow-hidden"
+          className="aspect-[16/10] bg-gray-200 dark:bg-gray-800 relative overflow-hidden"
           whileHover={{ scale: 1.05 }}
           transition={{ type: "spring", stiffness: 300 }}
         >
@@ -53,18 +53,18 @@ function ProjectCard({ project }: { project: Project }) {
         </motion.div>
       </Link>
 
-      <div className="p-6 flex flex-col flex-1">
+      <div className="p-5 sm:p-6 flex flex-col flex-1">
         {/* Title */}
         <motion.h3
-          className="text-xl font-semibold mb-2 hover:text-cyan-400 transition-colors"
+          className="text-lg sm:text-xl font-bold mb-2 h-7 flex items-center hover:text-cyan-400 transition-colors"
           whileHover={{ x: 5 }}
           transition={{ type: "spring", stiffness: 300 }}
         >
-          <Link href={`/projects/${project.id}`}>{project.title}</Link>
+          <Link href={`/projects/${project.id}`} className="truncate">{project.title}</Link>
         </motion.h3>
 
         {/* Description with Read More */}
-        <div className="text-secondary mb-4 text-sm leading-relaxed">
+        <div className="text-secondary mb-4 text-sm leading-relaxed min-h-[2.5rem]">
           <span>{displayedDesc}</span>
           {isLong && (
             <button
@@ -81,11 +81,11 @@ function ProjectCard({ project }: { project: Project }) {
 
         {/* Tags */}
         {project.technologies.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
+          <div className="flex flex-wrap gap-1.5 mb-5 mt-auto">
             {project.technologies.map((tech, i) => (
               <span
                 key={i}
-                className="px-3 py-1 bg-gray-100 dark:bg-dark text-gray-700 dark:text-gray-300 border border-transparent dark:border-tag-border rounded-full text-sm"
+                className="h-6 inline-flex items-center px-2.5 text-xs font-mono font-medium rounded-md bg-gray-100 dark:bg-slate-800/80 text-gray-700 dark:text-gray-300 border border-transparent dark:border-slate-700/60"
               >
                 {tech}
               </span>
@@ -94,15 +94,15 @@ function ProjectCard({ project }: { project: Project }) {
         )}
 
         {/* Links */}
-        <div className="flex items-center gap-4 mt-auto">
+        <div className="flex items-center gap-4 mt-auto border-t border-slate-800/60 pt-3.5">
           {project.githubLink && project.githubLink !== "#" && (
             <a
               href={project.githubLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-secondary hover:text-primary transition-colors text-sm"
+              className="flex items-center gap-1.5 text-secondary hover:text-primary transition-colors text-xs font-medium"
             >
-              <FaGithub className="h-5 w-5" />
+              <FaGithub className="h-3.5 w-3.5" />
               <span>Code</span>
             </a>
           )}
@@ -111,9 +111,9 @@ function ProjectCard({ project }: { project: Project }) {
               href={project.demoLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 text-secondary hover:text-primary transition-colors text-sm"
+              className="flex items-center gap-1.5 text-secondary hover:text-primary transition-colors text-xs font-medium"
             >
-              <FaExternalLinkAlt className="h-4 w-4" />
+              <FaExternalLinkAlt className="h-3.5 w-3.5" />
               <span>Live Demo</span>
             </a>
           )}
@@ -202,7 +202,7 @@ export default function ProjectsClientPage() {
       </motion.p>
 
       <motion.div
-        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8"
         variants={staggerContainer}
         initial="initial"
         animate="animate"

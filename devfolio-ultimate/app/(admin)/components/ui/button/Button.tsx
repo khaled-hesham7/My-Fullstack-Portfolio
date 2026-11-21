@@ -1,15 +1,18 @@
 import React, { ReactNode } from "react";
+import { twMerge } from "tailwind-merge";
 
-interface ButtonProps {
-  children: ReactNode; // Button text or content
-  size?: "sm" | "md"; // Button size
-  variant?: "primary" | "outline"; // Button variant
-  startIcon?: ReactNode; // Icon before the text
-  endIcon?: ReactNode; // Icon after the text
-  onClick?: () => void; // Click handler
-  disabled?: boolean; // Disabled state
-  className?: string; // Disabled state
-  type?: "button" | "submit" | "reset"; // Button type
+export interface ButtonProps {
+  children: ReactNode;
+  size?: "sm" | "md" | "lg";
+  variant?: "primary" | "secondary" | "outline" | "ghost" | "danger";
+  startIcon?: ReactNode;
+  endIcon?: ReactNode;
+  onClick?: () => void;
+  disabled?: boolean;
+  isLoading?: boolean;
+  className?: string;
+  type?: "button" | "submit" | "reset";
+  title?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -21,36 +24,53 @@ const Button: React.FC<ButtonProps> = ({
   onClick,
   className = "",
   disabled = false,
+  isLoading = false,
   type = "button",
+  title,
 }) => {
-  // Size Classes
+  // Proportional, balanced size tokens
   const sizeClasses = {
-    sm: "px-4 py-3 text-sm",
-    md: "px-5 py-3.5 text-sm",
+    sm: "h-9 px-3.5 text-xs rounded-xl font-medium",
+    md: "h-11 px-5 text-sm rounded-xl font-semibold",
+    lg: "h-12 px-6 text-base rounded-xl font-bold",
   };
 
-  // Variant Classes
+  // Cohesive visual variants (Deep Slate + Cyan / Cobalt)
   const variantClasses = {
     primary:
-      "bg-brand-500 text-white shadow-theme-xs hover:bg-brand-600 disabled:bg-brand-300",
+      "bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50 disabled:shadow-none disabled:hover:scale-100",
+    secondary:
+      "bg-slate-800/90 hover:bg-slate-700/90 text-slate-200 hover:text-white border border-slate-700/80 shadow-sm active:scale-[0.98]",
     outline:
-      "bg-white text-gray-700 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-400 dark:ring-gray-700 dark:hover:bg-white/[0.03] dark:hover:text-gray-300",
+      "bg-transparent hover:bg-slate-800/60 text-slate-300 hover:text-white border border-slate-700/80 hover:border-cyan-500/50 active:scale-[0.98]",
+    ghost:
+      "bg-transparent hover:bg-slate-800/60 text-slate-400 hover:text-white border-transparent",
+    danger:
+      "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/30 active:scale-[0.98]",
   };
+
+  const isBtnDisabled = disabled || isLoading;
 
   return (
     <button
-      className={`inline-flex items-center justify-center font-medium gap-2 rounded-lg transition ${className} ${
-        sizeClasses[size]
-      } ${variantClasses[variant]} ${
-        disabled ? "cursor-not-allowed opacity-50" : ""
-      }`}
+      className={twMerge(
+        "inline-flex items-center justify-center gap-2 select-none transition-all duration-200 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50",
+        sizeClasses[size],
+        variantClasses[variant],
+        className
+      )}
       onClick={onClick}
-      disabled={disabled}
+      disabled={isBtnDisabled}
       type={type}
+      title={title}
     >
-      {startIcon && <span className="flex items-center">{startIcon}</span>}
-      {children}
-      {endIcon && <span className="flex items-center">{endIcon}</span>}
+      {isLoading ? (
+        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+      ) : (
+        startIcon && <span className="flex items-center shrink-0">{startIcon}</span>
+      )}
+      <span>{children}</span>
+      {!isLoading && endIcon && <span className="flex items-center shrink-0">{endIcon}</span>}
     </button>
   );
 };

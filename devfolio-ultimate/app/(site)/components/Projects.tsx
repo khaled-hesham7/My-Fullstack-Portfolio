@@ -3,12 +3,12 @@
 import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { FaGithub, FaExternalLinkAlt, FaArrowRight, FaCode } from 'react-icons/fa'
+import { FaGithub, FaExternalLinkAlt, FaArrowRight } from 'react-icons/fa'
 import { motion } from 'framer-motion'
 import { fadeInUp, staggerContainer, cardHoverSmall } from '@/utils/animations'
 import { resolveImageUrl, getApiBaseUrl } from '@/lib/utils'
 
-const MAX_DESC_LENGTH = 110;
+const MAX_DESC_LENGTH = 120;
 
 interface Project {
   id: number;
@@ -29,18 +29,18 @@ function ProjectCard({ project }: { project: Project }) {
 
   return (
     <motion.article
-      className="group relative flex flex-col justify-between rounded-2xl bg-gradient-to-b from-slate-900/90 via-slate-900/60 to-slate-950 border border-slate-800/80 hover:border-cyan-500/50 p-5 shadow-xl hover:shadow-cyan-500/10 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 h-full"
+      className="group relative flex flex-col justify-between rounded-2xl bg-gradient-to-b from-slate-900/90 via-slate-900/60 to-slate-950 border border-slate-800/80 hover:border-cyan-500/50 p-5 sm:p-6 shadow-xl hover:shadow-cyan-500/10 backdrop-blur-xl transition-all duration-300 hover:-translate-y-1.5 h-full"
       variants={fadeInUp}
       {...cardHoverSmall}
     >
       {/* Subtle hover background sheen */}
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-cyan-500/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
 
-      <div>
-        {/* Project Thumbnail Image */}
+      <div className="flex flex-col flex-1">
+        {/* Project Thumbnail Image with Standardized 16/10 Ratio */}
         <Link
           href={`/projects/${project.id}`}
-          className="block relative aspect-video mb-4 rounded-xl overflow-hidden border border-slate-800/60 bg-slate-950/80 group-hover:border-cyan-500/30 transition-colors"
+          className="block relative aspect-[16/10] w-full mb-4 rounded-xl overflow-hidden border border-slate-800/60 bg-slate-950/80 group-hover:border-cyan-500/30 transition-colors flex-shrink-0"
         >
           <motion.div
             className="w-full h-full relative"
@@ -57,38 +57,36 @@ function ProjectCard({ project }: { project: Project }) {
           </motion.div>
         </Link>
 
-        {/* Title */}
-        <h3 className="text-lg font-bold text-white group-hover:text-cyan-300 transition-colors line-clamp-1 mb-2">
-          <Link href={`/projects/${project.id}`}>{project.title}</Link>
+        {/* Title: Standardized Height & Typography */}
+        <h3 className="text-lg sm:text-xl font-bold text-white group-hover:text-cyan-300 transition-colors line-clamp-1 mb-2 h-7 flex items-center">
+          <Link href={`/projects/${project.id}`} className="truncate">{project.title}</Link>
         </h3>
 
-        {/* Description */}
-        <p className="text-xs text-slate-400 leading-relaxed line-clamp-2 min-h-[2.5rem] mb-4">
+        {/* Description: Standardized 2-line 40px Box for Equal Card Height */}
+        <p className="text-sm text-slate-400 leading-relaxed line-clamp-2 h-10 mb-4">
           {displayedDesc}
         </p>
 
-        {/* Technologies Pills */}
-        {project.technologies && project.technologies.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-5">
-            {project.technologies.slice(0, 3).map((tech) => (
-              <span
-                key={tech}
-                className="px-2.5 py-0.5 text-[11px] font-medium rounded-lg bg-slate-800/80 text-slate-300 border border-slate-700/60"
-              >
-                {tech}
-              </span>
-            ))}
-            {project.technologies.length > 3 && (
-              <span className="px-2 py-0.5 text-[10px] font-semibold rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                +{project.technologies.length - 3}
-              </span>
-            )}
-          </div>
-        )}
+        {/* Technologies Pills: Standardized 28px Height & Uniform Dimensions */}
+        <div className="h-7 flex items-center flex-wrap gap-1.5 mb-5 overflow-hidden">
+          {project.technologies && project.technologies.slice(0, 3).map((tech) => (
+            <span
+              key={tech}
+              className="h-6 inline-flex items-center px-2.5 text-xs font-mono font-medium rounded-md bg-slate-800/80 text-slate-300 border border-slate-700/60"
+            >
+              {tech}
+            </span>
+          ))}
+          {project.technologies && project.technologies.length > 3 && (
+            <span className="h-6 inline-flex items-center px-2 text-xs font-mono font-semibold rounded-md bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+              +{project.technologies.length - 3}
+            </span>
+          )}
+        </div>
       </div>
 
-      {/* Card Footer Actions */}
-      <div className="border-t border-slate-800/80 pt-3.5 mt-auto flex items-center justify-between text-xs">
+      {/* Card Footer Actions: Standardized Alignment & Icon Sizes */}
+      <div className="border-t border-slate-800/80 pt-4 mt-auto flex items-center justify-between text-xs">
         <div className="flex items-center gap-3">
           {project.githubLink && project.githubLink !== "#" && (
             <a
@@ -97,7 +95,7 @@ function ProjectCard({ project }: { project: Project }) {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-slate-400 hover:text-white transition-colors"
             >
-              <FaGithub className="h-4 w-4" />
+              <FaGithub className="h-3.5 w-3.5" />
               <span>Code</span>
             </a>
           )}
@@ -108,7 +106,7 @@ function ProjectCard({ project }: { project: Project }) {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-slate-400 hover:text-cyan-400 transition-colors"
             >
-              <FaExternalLinkAlt className="h-3 w-3" />
+              <FaExternalLinkAlt className="h-3.5 w-3.5" />
               <span>Live Demo</span>
             </a>
           )}
@@ -116,10 +114,10 @@ function ProjectCard({ project }: { project: Project }) {
 
         <Link
           href={`/projects/${project.id}`}
-          className="inline-flex items-center gap-1 font-semibold text-cyan-400 hover:text-cyan-300 transition-colors group/link"
+          className="inline-flex items-center gap-1 font-semibold text-cyan-400 hover:text-cyan-300 transition-colors group/link ml-auto"
         >
           <span>Details</span>
-          <FaArrowRight className="text-[10px] group-hover/link:translate-x-0.5 transition-transform" />
+          <FaArrowRight className="text-[11px] group-hover/link:translate-x-0.5 transition-transform" />
         </Link>
       </div>
     </motion.article>
@@ -193,7 +191,7 @@ export default function Projects({ data: initialData }: { data?: any }) {
     return (
       <div className="flex justify-center items-center py-20 gap-2 text-slate-400">
         <span className="w-5 h-5 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin"></span>
-        <span className="text-sm">Loading Featured Projects...</span>
+        <span className="text-sm font-medium">Loading Featured Projects...</span>
       </div>
     );
   }
@@ -207,12 +205,12 @@ export default function Projects({ data: initialData }: { data?: any }) {
       : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto";
 
   return (
-    <section className="py-24 relative">
-      <div className="container max-w-7xl mx-auto px-4">
+    <section className="py-20 sm:py-24 relative">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center max-w-2xl mx-auto mb-14">
+        <div className="text-center max-w-2xl mx-auto mb-12 sm:mb-14">
           <motion.div
-            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-[11px] font-bold uppercase tracking-widest mb-3"
+            className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-semibold uppercase tracking-wider mb-3"
             {...fadeInUp}
           >
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
@@ -220,7 +218,7 @@ export default function Projects({ data: initialData }: { data?: any }) {
           </motion.div>
 
           <motion.h2
-            className="text-3xl md:text-4xl font-extrabold text-white tracking-tight"
+            className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight"
             {...fadeInUp}
             transition={{ delay: 0.1 }}
           >
@@ -228,7 +226,7 @@ export default function Projects({ data: initialData }: { data?: any }) {
           </motion.h2>
 
           <motion.p
-            className="text-sm text-slate-400 mt-2.5 leading-relaxed"
+            className="text-sm sm:text-base text-slate-400 mt-2.5 leading-relaxed"
             {...fadeInUp}
             transition={{ delay: 0.15 }}
           >
@@ -236,7 +234,7 @@ export default function Projects({ data: initialData }: { data?: any }) {
           </motion.p>
         </div>
 
-        {/* Dynamic Balanced Cards Grid */}
+        {/* Dynamic Balanced Cards Grid with Standardized Equal Heights */}
         <motion.div 
           className={`${gridLayoutClass} gap-6 sm:gap-8 items-stretch`}
           variants={staggerContainer}
@@ -257,7 +255,7 @@ export default function Projects({ data: initialData }: { data?: any }) {
         {/* Modern Action Button */}
         {projectsToRender.length > 0 && (
           <motion.div
-            className="text-center mt-14"
+            className="text-center mt-12 sm:mt-14"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}

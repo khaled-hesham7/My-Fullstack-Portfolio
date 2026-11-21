@@ -25,6 +25,7 @@ export function generateSEO({
   robots = "index, follow",
 }: SEOProps): Metadata {
   return {
+    metadataBase: new URL("https://the-forge-one.vercel.app"),
     title,
     description,
     keywords: keywords?.join(", "), 

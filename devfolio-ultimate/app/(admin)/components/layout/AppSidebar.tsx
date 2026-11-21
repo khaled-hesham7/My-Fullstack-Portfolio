@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useSidebar } from "../../context/SidebarContext";
+import { useSidebar } from "@/app/context/SidebarContext";
 import {
   BoxCubeIcon,
   CalenderIcon,
@@ -21,7 +21,7 @@ import {
   TableIcon,
   TaskIcon,
   UserCircleIcon,
-} from "../../icons/index";
+} from "@/app/icons";
 
 
 type NavItem = {
@@ -32,6 +32,11 @@ type NavItem = {
 };
 
 const navItems: NavItem[] = [
+  {
+    icon: <PieChartIcon />,
+    name: "Overview & Reports",
+    path: "/admin",
+  },
   {
     icon: <UserCircleIcon />,
     name: "Profile",
@@ -87,7 +92,13 @@ const navItems: NavItem[] = [
 const othersItems: NavItem[] = [];
 
 const AppSidebar: React.FC = () => {
-  const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
+  const {
+    isExpanded,
+    isMobileOpen,
+    isHovered,
+    setIsHovered,
+    toggleMobileSidebar,
+  } = useSidebar();
   const pathname = usePathname();
 
   const renderMenuItems = (
@@ -282,7 +293,7 @@ const AppSidebar: React.FC = () => {
 
   return (
     <aside
-      className={`fixed mt-16 flex flex-col lg:mt-0 top-0 px-5 left-0 bg-white dark:bg-gray-900 dark:border-gray-800 text-gray-900 h-screen transition-all duration-300 ease-in-out z-50 border-r border-gray-200 
+      className={`fixed top-0 flex flex-col px-5 left-0 bg-slate-900 text-slate-100 h-screen transition-all duration-300 ease-in-out z-40 border-r border-slate-800 
         ${
           isExpanded || isMobileOpen
             ? "w-[290px]"
@@ -296,28 +307,19 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`py-8 flex  ${
-          !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
+        className={`py-6 flex items-center ${
+          !isExpanded && !isHovered ? "lg:justify-center" : "justify-between"
         }`}
       >
         <Link href="/">
           {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <Image
-                className="dark:hidden object-contain hue-rotate-[190deg] brightness-150 contrast-125 drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
-                src="/logo/light-logo.webp"
-                alt="Logo"
-                width={140}
-                height={40}
-              />
-              <Image
-                className="hidden dark:block object-contain hue-rotate-[190deg] brightness-150 contrast-125 drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
-                src="/logo/dark-logo.webp"
-                alt="Logo"
-                width={140}
-                height={40}
-              />
-            </>
+            <Image
+              className="object-contain hue-rotate-[190deg] brightness-150 contrast-125 drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
+              src="/logo/dark-logo.webp"
+              alt="Logo"
+              width={140}
+              height={40}
+            />
           ) : (
             <Image
               className="object-contain hue-rotate-[190deg] brightness-150 contrast-125 drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
@@ -328,6 +330,16 @@ const AppSidebar: React.FC = () => {
             />
           )}
         </Link>
+
+        {isMobileOpen && (
+          <button
+            onClick={toggleMobileSidebar}
+            className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white bg-slate-800 border border-slate-700/60"
+            aria-label="Close sidebar"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        )}
       </div>
       <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
         <nav className="mb-6">

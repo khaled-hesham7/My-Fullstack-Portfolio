@@ -79,7 +79,7 @@ export default function SignInForm() {
   };
 
   return (
-    <div className="w-full max-w-md mx-auto p-8 rounded-2xl bg-[#0F1626]/80 border border-white/10 shadow-2xl backdrop-blur-xl">
+    <div className="w-full max-w-md mx-auto p-5 sm:p-8 rounded-2xl bg-[#0F1626]/80 border border-white/10 shadow-2xl backdrop-blur-xl">
       <div className="mb-8 text-center">
         <h1 className="text-2xl font-extrabold text-white tracking-tight mb-2">
           Sign In to Dashboard

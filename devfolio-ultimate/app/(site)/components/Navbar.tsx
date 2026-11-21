@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -26,6 +26,7 @@ export default function Navbar() {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isHoveringDock, setIsHoveringDock] = useState(false);
+  const [isTouchDevice, setIsTouchDevice] = useState(false);
 
   const isHoveringDockRef = useRef(false);
   const isMouseNearBottomRef = useRef(false);
@@ -36,15 +37,31 @@ export default function Navbar() {
   }, [isHoveringDock]);
 
   useEffect(() => {
+    // Check if on touch/mobile device
+    const checkTouch = () => {
+      const touch = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768;
+      setIsTouchDevice(touch);
+      if (touch) {
+        setIsVisible(true);
+      }
+    };
+
+    checkTouch();
+    window.addEventListener("resize", checkTouch);
+
     const handleScroll = () => {
       setIsVisible(true);
       if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
       scrollTimerRef.current = setTimeout(() => {
         scrollTimerRef.current = null;
         if (!isHoveringDockRef.current && !isMouseNearBottomRef.current) {
-          setIsVisible(false);
+          // Keep visible on touch devices
+          const touch = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768;
+          if (!touch) {
+            setIsVisible(false);
+          }
         }
-      }, 300);
+      }, 400);
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -54,7 +71,10 @@ export default function Navbar() {
       if (nearBottom || isHoveringDockRef.current || scrollTimerRef.current !== null) {
         setIsVisible(true);
       } else {
-        setIsVisible(false);
+        const touch = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768;
+        if (!touch) {
+          setIsVisible(false);
+        }
       }
     };
 
@@ -62,26 +82,29 @@ export default function Navbar() {
     window.addEventListener("mousemove", handleMouseMove, { passive: true });
 
     return () => {
+      window.removeEventListener("resize", checkTouch);
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("mousemove", handleMouseMove);
       if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current);
     };
   }, []);
 
+  const showDock = isTouchDevice || isVisible || isHoveringDock;
+
   return (
     <>
       {/* Top Left Floating Brand Logo */}
-      <div className="fixed top-6 left-6 md:left-12 z-50 pointer-events-auto">
+      <div className="fixed top-4 left-4 sm:top-6 sm:left-6 md:left-12 z-50 pointer-events-auto">
         <Link
           href="/"
           className="text-xl block dark:hidden font-bold text-primary"
         >
           <Image
             src="/logo/light-logo.webp"
-            width={130}
-            height={86}
+            width={120}
+            height={78}
             alt="the Forge Logo"
-            className="hue-rotate-[190deg] brightness-150 contrast-125 transition-all duration-500 animate-pulse drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
+            className="w-24 sm:w-28 md:w-32 h-auto object-contain hue-rotate-[190deg] brightness-150 contrast-125 transition-all duration-500 animate-pulse drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
           />
         </Link>
         <Link
@@ -90,10 +113,10 @@ export default function Navbar() {
         >
           <Image
             src="/logo/dark-logo.webp"
-            width={130}
-            height={86}
+            width={120}
+            height={78}
             alt="the Forge Logo"
-            className="hue-rotate-[190deg] brightness-150 contrast-125 transition-all duration-500 animate-pulse drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
+            className="w-24 sm:w-28 md:w-32 h-auto object-contain hue-rotate-[190deg] brightness-150 contrast-125 transition-all duration-500 animate-pulse drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
           />
         </Link>
       </div>
@@ -102,24 +125,24 @@ export default function Navbar() {
       <motion.div 
         initial={{ y: 40, opacity: 0 }}
         animate={{ 
-          y: isVisible || isHoveringDock ? 0 : 40, 
-          opacity: isVisible || isHoveringDock ? 1 : 0,
+          y: showDock ? 0 : 40, 
+          opacity: showDock ? 1 : 0,
         }}
         transition={{ duration: 0.3, ease: "easeOut" }}
-        style={{ pointerEvents: isVisible || isHoveringDock ? "auto" : "none" }}
-        className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50"
+        style={{ pointerEvents: showDock ? "auto" : "none" }}
+        className="fixed bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-20px)]"
         onMouseEnter={() => {
           setIsHoveringDock(true);
           setIsVisible(true);
         }}
         onMouseLeave={() => {
           setIsHoveringDock(false);
-          if (!isMouseNearBottomRef.current && scrollTimerRef.current === null) {
+          if (!isMouseNearBottomRef.current && scrollTimerRef.current === null && !isTouchDevice) {
             setIsVisible(false);
           }
         }}
       >
-        {/* Outer glowing border wrapper (no overflow-hidden, so tooltips aren't clipped!) */}
+        {/* Outer glowing border wrapper */}
         <div className="relative rounded-full p-[1.5px] bg-white/5 shadow-[0_10px_30px_rgba(0,0,0,0.6),0_0_25px_rgba(34,211,238,0.15)] flex items-center justify-center">
           {/* Contain the rotating beam within the rounded bounds of the dock */}
           <div className="absolute inset-0 overflow-hidden rounded-full z-0 pointer-events-none">
@@ -128,10 +151,9 @@ export default function Navbar() {
           </div>
           
           {/* Inner Content Container */}
-          <div className="relative z-10 px-6 py-2.5 rounded-full bg-[#030712]/90 backdrop-blur-lg flex items-center justify-center space-x-5 md:space-x-6 w-full h-full">
+          <div className="relative z-10 px-3.5 sm:px-6 py-2 sm:py-2.5 rounded-full bg-[#030712]/92 backdrop-blur-xl flex items-center justify-center space-x-2.5 sm:space-x-5 md:space-x-6 w-full h-full">
             {dockItems.map((item, index) => {
               const Icon = item.icon;
-              // Handle active state matching (supporting matching exact routes or sub-routes)
               const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
 
               return (
@@ -144,7 +166,7 @@ export default function Navbar() {
                 >
                   {/* Tooltip Popup (Framer Motion AnimatePresence) */}
                   <AnimatePresence>
-                    {hoveredIndex === index && (
+                    {hoveredIndex === index && !isTouchDevice && (
                       <motion.span
                         initial={{ opacity: 0, scale: 0.85, y: 4, x: "-50%" }}
                         animate={{ opacity: 1, scale: 1, y: 0, x: "-50%" }}
@@ -161,15 +183,15 @@ export default function Navbar() {
 
                   {/* Animated Icon Container */}
                   <motion.div
-                    whileHover={{ scale: 1.25, y: -4 }}
-                    whileTap={{ scale: 0.95 }}
-                    className={`p-2.5 rounded-full transition-colors ${
+                    whileHover={{ scale: 1.2, y: -3 }}
+                    whileTap={{ scale: 0.92 }}
+                    className={`p-2 sm:p-2.5 rounded-full transition-colors ${
                       isActive 
-                        ? "text-primary bg-white/[0.06] border border-white/5" 
+                        ? "text-primary bg-white/[0.08] border border-white/10" 
                         : "text-gray-400 hover:text-primary hover:bg-white/[0.03]"
                     }`}
                   >
-                    <Icon className="h-5 w-5" />
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </motion.div>
 
                   {/* Active Indicator Glowing Dot */}

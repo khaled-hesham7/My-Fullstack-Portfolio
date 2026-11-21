@@ -1,63 +1,87 @@
-import React from "react";
+import React, { forwardRef } from "react";
+import { twMerge } from "tailwind-merge";
 
-interface TextareaProps {
-  placeholder?: string; // Placeholder text
-  rows?: number; // Number of rows
-  value?: string; // Current value
-  onChange?: (value: string) => void; // Change handler
-  className?: string; // Additional CSS classes
-  disabled?: boolean; // Disabled state
-  error?: boolean; // Error state
-  hint?: string; // Hint text to display
+export interface TextareaProps {
+  placeholder?: string;
+  rows?: number;
+  value?: string;
+  defaultValue?: string;
+  onChange?: (value: string) => void;
+  className?: string;
+  disabled?: boolean;
+  error?: boolean;
+  hint?: string;
+  id?: string;
+  name?: string;
 }
 
-const TextArea: React.FC<TextareaProps> = ({
-  placeholder = "Enter your message", // Default placeholder
-  rows = 3, // Default number of rows
-  value = "", // Default value
-  onChange, // Callback for changes
-  className = "", // Additional custom styles
-  disabled = false, // Disabled state
-  error = false, // Error state
-  hint = "", // Default hint text
-}) => {
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    if (onChange) {
-      onChange(e.target.value);
+const TextArea = forwardRef<HTMLTextAreaElement, TextareaProps>(
+  (
+    {
+      placeholder = "Enter your message",
+      rows = 3,
+      value,
+      defaultValue,
+      onChange,
+      className = "",
+      disabled = false,
+      error = false,
+      hint = "",
+      id,
+      name,
+      ...rest
+    },
+    ref
+  ) => {
+    const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      if (onChange) {
+        onChange(e.target.value);
+      }
+    };
+
+    const baseClasses =
+      "w-full rounded-xl border px-4 py-2.5 text-sm transition-all duration-200 outline-none resize-y";
+
+    let stateClasses =
+      "bg-slate-900/80 border-slate-700/80 text-slate-100 placeholder:text-slate-500 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20";
+
+    if (disabled) {
+      stateClasses =
+        "opacity-50 cursor-not-allowed bg-slate-950/60 border-slate-800 text-slate-500 placeholder:text-slate-600";
+    } else if (error) {
+      stateClasses =
+        "bg-slate-900/80 border-rose-500/80 text-rose-300 placeholder:text-rose-400/50 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20";
     }
-  };
 
-  let textareaClasses = `w-full rounded-lg border px-4 py-2.5 text-sm shadow-theme-xs focus:outline-hidden ${className}`;
-
-  if (disabled) {
-    textareaClasses += ` bg-gray-100 opacity-50 text-gray-500 border-gray-300 cursor-not-allowed dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700`;
-  } else if (error) {
-    textareaClasses += ` bg-transparent text-gray-400 border-gray-300 focus:border-error-300 focus:ring-3 focus:ring-error-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-error-800`;
-  } else {
-    textareaClasses += ` bg-transparent text-gray-400 border-gray-300 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800`;
+    return (
+      <div className="relative w-full">
+        <textarea
+          ref={ref}
+          id={id}
+          name={name}
+          placeholder={placeholder}
+          rows={rows}
+          value={value}
+          defaultValue={defaultValue}
+          onChange={handleChange}
+          disabled={disabled}
+          className={twMerge(baseClasses, stateClasses, className)}
+          {...rest}
+        />
+        {hint && (
+          <p
+            className={`mt-1.5 text-xs ${
+              error ? "text-rose-400" : "text-slate-400"
+            }`}
+          >
+            {hint}
+          </p>
+        )}
+      </div>
+    );
   }
+);
 
-  return (
-    <div className="relative">
-      <textarea
-        placeholder={placeholder}
-        rows={rows}
-        value={value}
-        onChange={handleChange}
-        disabled={disabled}
-        className={textareaClasses}
-      />
-      {hint && (
-        <p
-          className={`mt-2 text-sm ${
-            error ? "text-error-500" : "text-gray-500 dark:text-gray-400"
-          }`}
-        >
-          {hint}
-        </p>
-      )}
-    </div>
-  );
-};
+TextArea.displayName = "TextArea";
 
 export default TextArea;

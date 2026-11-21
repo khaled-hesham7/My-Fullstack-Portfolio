@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { 
@@ -24,7 +24,10 @@ import {
   FaMedium,
   FaPinterest,
   FaDiscord,
-  FaStackOverflow
+  FaStackOverflow,
+  FaFilePdf,
+  FaDownload,
+  FaChevronDown
 } from "react-icons/fa";
 import {
   SiUpwork,
@@ -38,7 +41,7 @@ import {
 } from "react-icons/si";
 import { motion } from "framer-motion";
 import { fadeInUp, fadeIn, scaleIn } from "@/utils/animations";
-import { resolveImageUrl } from "@/lib/utils";
+import { resolveImageUrl, getApiBaseUrl } from "@/lib/utils";
 
 const getSocialIcon = (platform: string) => {
   switch (platform.toLowerCase()) {
@@ -165,7 +168,7 @@ function MiniTerminal({ data }: { data: any }) {
   }, [profile?.skills]);
 
   return (
-    <div className="w-full max-w-lg mx-auto lg:mx-0 rounded-lg overflow-hidden border border-[#1f293d] bg-black/50 backdrop-blur-md text-left shadow-[0_0_30px_rgba(78,128,247,0.15)] font-mono text-xs text-green-400 select-none">
+    <div className="w-full max-w-lg mx-auto lg:mx-0 rounded-xl overflow-hidden border border-[#1f293d] bg-black/50 backdrop-blur-md text-left shadow-[0_0_30px_rgba(78,128,247,0.15)] font-mono text-xs text-green-400 select-none">
       {/* Top Header Bar */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-[#1f293d] bg-white/[0.03]">
         <div className="flex space-x-1.5">
@@ -177,7 +180,7 @@ function MiniTerminal({ data }: { data: any }) {
       </div>
       
       {/* Console Area */}
-      <div className="p-4 space-y-1.5 min-h-[280px] leading-relaxed whitespace-pre-wrap">
+      <div className="p-3.5 sm:p-5 space-y-1.5 min-h-[220px] sm:min-h-[280px] leading-relaxed whitespace-pre-wrap break-words overflow-x-auto text-xs sm:text-[13px]">
         {displayedLines.map((line, idx) => (
           <div key={idx}>{line}</div>
         ))}
@@ -199,6 +202,41 @@ function MiniTerminal({ data }: { data: any }) {
 export default function Hero({ data }: { data: any }) {
   const profile = data?.profile;
   const [typedText, setTypedText] = useState("");
+  const [cvList, setCvList] = useState<{ id: number; title: string; file_url: string }[]>([]);
+  const [isCvOpen, setIsCvOpen] = useState(false);
+  const cvDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (data?.cvs && Array.isArray(data.cvs) && data.cvs.length > 0) {
+      setCvList(data.cvs);
+      return;
+    }
+    const fetchCvs = async () => {
+      try {
+        const apiBase = getApiBaseUrl();
+        const res = await fetch(`${apiBase}/cvs`);
+        if (res.ok) {
+          const payload = await res.json();
+          if (payload.success && Array.isArray(payload.data)) {
+            setCvList(payload.data);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load CVs in Hero:", err);
+      }
+    };
+    fetchCvs();
+  }, [data]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (cvDropdownRef.current && !cvDropdownRef.current.contains(event.target as Node)) {
+        setIsCvOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const texts = profile?.typewriter_text
@@ -248,10 +286,10 @@ export default function Hero({ data }: { data: any }) {
   }, [profile?.typewriter_text]);
 
   return (
-    <section className="py-28 relative overflow-hidden group/hero">
-      <div className="container max-w-7xl mx-auto px-4 relative z-10">
+    <section className="py-20 sm:py-24 md:py-28 relative overflow-hidden group/hero">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Two-column grid on desktop (lg+), stacked on mobile */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center text-center lg:text-left">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center text-center lg:text-left">
           
           {/* Left Column: Avatar, Text, Buttons, Socials */}
           <div className="lg:col-span-7 flex flex-col items-center lg:items-start animate-fade-in">
@@ -289,7 +327,7 @@ export default function Hero({ data }: { data: any }) {
  
             {/* Headings */}
             <motion.h1
-              className="text-4xl md:text-6xl font-bold mb-4"
+              className="text-3xl sm:text-5xl md:text-6xl font-bold mb-3 tracking-tight"
               {...fadeInUp}
               transition={{ delay: 0.3 }}
             >
@@ -304,7 +342,7 @@ export default function Hero({ data }: { data: any }) {
             </motion.h1>
  
             <motion.h2
-              className="text-xl md:text-2xl text-accent-blue dark:text-sky-blue font-semibold mb-4 animate-fade-in"
+              className="text-xl sm:text-2xl text-accent-blue dark:text-sky-blue font-semibold mb-3 tracking-tight animate-fade-in"
               {...fadeInUp}
               transition={{ delay: 0.4 }}
             >
@@ -312,42 +350,109 @@ export default function Hero({ data }: { data: any }) {
             </motion.h2>
  
             <motion.p
-              className="text-lg text-gray-600 dark:text-description max-w-2xl mb-8 leading-relaxed min-h-[32px] flex items-center justify-center lg:justify-start"
+              className="text-base sm:text-lg text-gray-600 dark:text-description max-w-2xl mb-8 leading-relaxed min-h-[36px] flex items-center justify-center lg:justify-start"
             >
               <span>{typedText}</span>
-              <span className="inline-block w-[2px] h-5 bg-[#4e80f7] dark:bg-sky-blue ml-1 animate-pulse" />
+              <span className="inline-block w-[2px] h-5 bg-[#4e80f7] dark:bg-sky-blue ml-1.5 animate-pulse" />
             </motion.p>
 
-            {/* Social Links */}
+            {/* Actions & Social Links Row */}
             <motion.div
-              className="flex justify-center lg:justify-start space-x-4"
+              className="flex flex-wrap items-center justify-center lg:justify-start gap-4"
               {...fadeInUp}
               transition={{ delay: 0.55 }}
             >
-              {(() => {
-                const links = Array.isArray(data?.SocialLink)
-                  ? data.SocialLink
-                  : Array.isArray(data?.social_links)
-                  ? data.social_links
-                  : data?.SocialLink?.data || data?.social_links?.data || [];
-                if (!links || links.length === 0) return null;
-                return links.map((link: any) => {
-                  const Icon = getSocialIcon(link.platform);
-                  return (
-                    <motion.a
-                      key={link.id}
-                      href={link.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-2xl text-gray-600 hover:text-primary dark:text-gray-300 dark:hover:text-primary transition-colors"
-                      whileHover={{ scale: 1.2 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <Icon />
-                    </motion.a>
-                  );
-                });
-              })()}
+              {/* CV Download Button / Dropdown */}
+              {cvList.length === 1 ? (
+                <a
+                  href={resolveImageUrl(cvList[0].file_url)}
+                  target="_blank"
+                  download
+                  rel="noopener noreferrer"
+                  className="group inline-flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500/15 via-blue-500/15 to-indigo-500/15 hover:from-cyan-500/25 hover:to-indigo-500/25 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 hover:text-white font-semibold text-xs sm:text-sm shadow-[0_0_20px_rgba(6,182,212,0.12)] transition-all duration-200 cursor-pointer backdrop-blur-md"
+                  title="Download Resume"
+                >
+                  <FaFilePdf className="text-cyan-400 text-sm group-hover:scale-110 transition-transform" />
+                  <span>Download CV</span>
+                  <FaDownload className="text-[11px] text-slate-400 group-hover:text-white transition-colors" />
+                </a>
+              ) : cvList.length > 1 ? (
+                <div className="relative" ref={cvDropdownRef}>
+                  <button
+                    onClick={() => setIsCvOpen(!isCvOpen)}
+                    className="group inline-flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500/15 via-blue-500/15 to-indigo-500/15 hover:from-cyan-500/25 hover:to-indigo-500/25 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 hover:text-white font-semibold text-xs sm:text-sm shadow-[0_0_20px_rgba(6,182,212,0.12)] transition-all duration-200 cursor-pointer backdrop-blur-md"
+                    aria-expanded={isCvOpen}
+                  >
+                    <FaFilePdf className="text-cyan-400 text-sm group-hover:scale-110 transition-transform" />
+                    <span>Download CV</span>
+                    <FaChevronDown className={`text-[10px] text-cyan-400 transition-transform duration-200 ${isCvOpen ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {isCvOpen && (
+                    <div className="absolute left-1/2 -translate-x-1/2 sm:left-0 sm:translate-x-0 mt-2 w-60 rounded-xl bg-slate-950/95 border border-slate-800 shadow-2xl p-1.5 z-50 backdrop-blur-xl animate-fade-in">
+                      <div className="px-3 py-1.5 text-[10px] font-mono uppercase tracking-wider text-slate-400 border-b border-slate-800/80 mb-1">
+                        Select Resume Version
+                      </div>
+                      {cvList.map((cv) => (
+                        <a
+                          key={cv.id}
+                          href={resolveImageUrl(cv.file_url)}
+                          target="_blank"
+                          download
+                          rel="noopener noreferrer"
+                          onClick={() => setIsCvOpen(false)}
+                          className="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-800/80 text-xs text-slate-200 hover:text-cyan-300 transition-colors group/item"
+                        >
+                          <span className="flex items-center gap-2 truncate">
+                            <FaFilePdf className="text-cyan-400 text-xs shrink-0" />
+                            <span className="truncate">{cv.title}</span>
+                          </span>
+                          <FaDownload className="text-[10px] text-slate-500 group-hover/item:text-cyan-400 shrink-0 ml-2" />
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <Link
+                  href="/about"
+                  className="group inline-flex items-center gap-2.5 px-4 sm:px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500/15 via-blue-500/15 to-indigo-500/15 hover:from-cyan-500/25 hover:to-indigo-500/25 border border-cyan-500/40 hover:border-cyan-400 text-cyan-300 hover:text-white font-semibold text-xs sm:text-sm shadow-[0_0_20px_rgba(6,182,212,0.12)] transition-all duration-200 cursor-pointer backdrop-blur-md"
+                >
+                  <FaFilePdf className="text-cyan-400 text-sm group-hover:scale-110 transition-transform" />
+                  <span>View Resume</span>
+                  <FaDownload className="text-[11px] text-slate-400 group-hover:text-white transition-colors" />
+                </Link>
+              )}
+
+              {/* Social Links */}
+              <div className="flex items-center gap-3">
+                {(() => {
+                  const links = Array.isArray(data?.SocialLink)
+                    ? data.SocialLink
+                    : Array.isArray(data?.social_links)
+                    ? data.social_links
+                    : data?.SocialLink?.data || data?.social_links?.data || [];
+                  if (!links || links.length === 0) return null;
+                  return links.map((link: any) => {
+                    const Icon = getSocialIcon(link.platform);
+                    return (
+                      <motion.a
+                        key={link.id}
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xl sm:text-2xl text-gray-400 hover:text-primary dark:text-gray-300 dark:hover:text-primary transition-colors"
+                        whileHover={{ scale: 1.15 }}
+                        whileTap={{ scale: 0.95 }}
+                        title={link.platform}
+                        aria-label={link.platform}
+                      >
+                        <Icon />
+                      </motion.a>
+                    );
+                  });
+                })()}
+              </div>
             </motion.div>
 
           </div>

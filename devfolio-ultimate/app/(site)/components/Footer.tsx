@@ -132,19 +132,19 @@ export default function Footer() {
 
   return (
     <footer className="bg-white dark:bg-dark border-t border-gray-200 dark:border-gray-800 relative z-10">
-      <div className="container max-w-7xl mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row justify-between items-center">
-          <div className="mb-4 md:mb-0">
+      <div className="container max-w-7xl mx-auto px-4 py-8 pb-24 sm:pb-8">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6 md:gap-0">
+          <div className="flex flex-col items-center md:items-start">
             <Link
               href="/"
               className="text-xl block dark:hidden font-bold text-primary"
             >
               <Image
                 src="/logo/light-logo.webp"
-                width={150}
-                height={100}
+                width={130}
+                height={80}
                 alt="the Forge Logo"
-                className="hue-rotate-[190deg] brightness-150 contrast-125 transition-all duration-500 animate-pulse drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
+                className="w-28 sm:w-36 h-auto object-contain hue-rotate-[190deg] brightness-150 contrast-125 transition-all duration-500 animate-pulse drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
               />
             </Link>
             <Link
@@ -153,10 +153,10 @@ export default function Footer() {
             >
               <Image
                 src="/logo/dark-logo.webp"
-                width={150}
-                height={100}
+                width={130}
+                height={80}
                 alt="the Forge Logo"
-                className="hue-rotate-[190deg] brightness-150 contrast-125 transition-all duration-500 animate-pulse drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
+                className="w-28 sm:w-36 h-auto object-contain hue-rotate-[190deg] brightness-150 contrast-125 transition-all duration-500 animate-pulse drop-shadow-[0_0_6px_rgba(6,182,212,0.5)]"
               />
             </Link>
             <p className="text-sm text-center md:text-left text-secondary mt-2">
@@ -166,7 +166,7 @@ export default function Footer() {
             </p>
           </div>
 
-          <div className="flex space-x-6">
+          <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6">
             {linksToRender.map((link) => {
               const Icon = getSocialIcon(link.platform);
               return (

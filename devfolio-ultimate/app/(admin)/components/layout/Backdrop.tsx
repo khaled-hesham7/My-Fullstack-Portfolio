@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { useSidebar } from "../../context/SidebarContext";
+import { useSidebar } from "@/app/context/SidebarContext";
 
 const Backdrop: React.FC = () => {
   const { isMobileOpen, toggleMobileSidebar } = useSidebar();
@@ -9,7 +9,7 @@ const Backdrop: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-40 bg-gray-900/50 lg:hidden"
+      className="fixed inset-0 z-35 bg-slate-950/70 backdrop-blur-xs lg:hidden transition-opacity"
       onClick={toggleMobileSidebar}
     />
   );

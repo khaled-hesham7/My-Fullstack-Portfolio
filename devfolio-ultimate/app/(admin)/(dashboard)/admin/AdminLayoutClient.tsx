@@ -1,9 +1,9 @@
 "use client";
 
 import { useSidebar } from "@/app/context/SidebarContext";
-import AppHeader from "@/app/(site)/components/AppHeader";
-import AppSidebar from "@/app/(site)/components/AppSidebar";
-import Backdrop from "@/app/(site)/components/Backdrop";
+import AppHeader from "@/app/(admin)/components/layout/AppHeader";
+import AppSidebar from "@/app/(admin)/components/layout/AppSidebar";
+import Backdrop from "@/app/(admin)/components/layout/Backdrop";
 
 export default function AdminLayoutClient({
   children,
@@ -19,20 +19,20 @@ export default function AdminLayoutClient({
     : "lg:ml-[90px]";
 
   return (
-    <div className="min-h-screen xl:flex">
+    <div className="min-h-screen bg-slate-950">
       {/* Sidebar and Backdrop */}
       <AppSidebar />
       <Backdrop />
 
       {/* Main Content Area */}
       <div
-        className={`flex-1 transition-all duration-300 ease-in-out ${mainContentMargin}`}
+        className={`flex flex-col min-h-screen transition-all duration-300 ease-in-out ${mainContentMargin}`}
       >
         {/* Header */}
         <AppHeader />
 
         {/* Page Content */}
-        <div className="h-full min-h-screen bg-slate-950 p-6 md:p-10">{children}</div>
+        <main className="flex-1 bg-slate-950 p-4 sm:p-6 md:p-8 lg:p-10">{children}</main>
       </div>
     </div>
   );
