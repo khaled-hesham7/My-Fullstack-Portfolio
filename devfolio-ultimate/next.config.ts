@@ -29,6 +29,11 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
       {
+        protocol: "https",
+        hostname: "khaled-hesham.alwaysdata.net",
+        pathname: "/**",
+      },
+      {
         protocol: "http",
         hostname: "127.0.0.1",
         pathname: "/**",
