@@ -1,11 +1,11 @@
 import ProjectsClientPage from "./ProjectsClientPage";
 import { generateSEO } from "@/utils/seo";
-const projectsPageUrl = "https://the-forge-one.vercel.app/projects";
+const projectsPageUrl = "https://khaled-the-forge.vercel.app/projects";
 const projectsPageTitle =
   "Projects | Khaled Hesham | Backend Developer | The Forge";
 const projectsPageDescription =
   "Explore the projects built by Khaled Hesham, showcasing skills in React, Next.js, TypeScript, and modern web development.";
-const projectsPageImage = "https://the-forge-one.vercel.app/youssef.png"; // OG/Twitter image
+const projectsPageImage = "https://khaled-the-forge.vercel.app/youssef.png"; // OG/Twitter image
 
 export const metadata = generateSEO({
   title: projectsPageTitle,

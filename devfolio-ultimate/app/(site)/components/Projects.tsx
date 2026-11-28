@@ -37,7 +37,7 @@ const FALLBACK_PROJECTS: Project[] = [
     image: "/projects/portfolio-website.jpg",
     technologies: ["Next.js", "TypeScript", "Tailwind", "Docker"],
     githubLink: "https://github.com/khaled-hesham7/My-Fullstack-Portfolio",
-    demoLink: "https://the-forge-one.vercel.app",
+    demoLink: "https://khaled-the-forge.vercel.app",
   },
   {
     id: 3,

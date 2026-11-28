@@ -79,7 +79,7 @@ export async function generateMetadata({ params }: any): Promise<Metadata> {
   const blogPost = await fetchBlogPost(slug);
   if (!blogPost) notFound();
 
-  const url = `https://the-forge-one.vercel.app/blog/${slug}`;
+  const url = `https://khaled-the-forge.vercel.app/blog/${slug}`;
   return generateSEO({
     title: `${blogPost.title} | Khaled Hesham | The Forge`,
     description: blogPost.excerpt,

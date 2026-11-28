@@ -7,11 +7,11 @@ import { getApiBaseUrl } from "@/lib/utils";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const homePageUrl = "https://the-forge-one.vercel.app/";
+const homePageUrl = "https://khaled-the-forge.vercel.app/";
 const homePageTitle = "Khaled Hesham | Backend Developer | The Forge";
 const homePageDescription =
   "Welcome to the portfolio of Khaled Hesham The Forge, a Backend Developer and Social Work Student. Explore my projects, blog posts, and skills in PHP, Laravel, and modern web development.";
-const homePageImage = "https://the-forge-one.vercel.app/seo/home-preview.jpg";
+const homePageImage = "https://khaled-the-forge.vercel.app/seo/home-preview.jpg";
 
 export const metadata = generateSEO({
   title: homePageTitle,

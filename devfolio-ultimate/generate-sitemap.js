@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || "https://the-forge-one.vercel.app";
+  process.env.NEXT_PUBLIC_SITE_URL || "https://khaled-the-forge.vercel.app";
 
 // روابط وهمية — استبدلها بالـ fetch/DB call عندك
 // async function getAllProducts() {

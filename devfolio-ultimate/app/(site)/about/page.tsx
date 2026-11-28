@@ -3,12 +3,12 @@ import { generateSEO } from "@/utils/seo";
 import { getApiBaseUrl } from "@/lib/utils";
 import AboutClient from "./AboutClientPage";
 
-const aboutPageUrl = "https://the-forge-one.vercel.app/about";
+const aboutPageUrl = "https://khaled-the-forge.vercel.app/about";
 const aboutPageTitle =
   "About Khaled Hesham | Backend Developer | The Forge";
 const aboutPageDescription =
   "Learn more about Khaled Hesham, a Backend Developer and Computer Science student. View my skills, experience, and academic background.";
-const aboutPageImage = "https://the-forge-one.vercel.app/khalid.jpeg";
+const aboutPageImage = "https://khaled-the-forge.vercel.app/khalid.jpeg";
 
 export const metadata = generateSEO({
   title: aboutPageTitle,

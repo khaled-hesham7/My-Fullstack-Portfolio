@@ -3,11 +3,11 @@ import BlogsClientPage from "./BlogsClientPage";
 import { generateSEO } from "@/utils/seo";
 import { getApiBaseUrl } from "@/lib/utils";
 
-const blogPageUrl = "https://the-forge-one.vercel.app/blog";
+const blogPageUrl = "https://khaled-the-forge.vercel.app/blog";
 const blogPageTitle = "Blog Posts | Khaled Hesham | The Forge";
 const blogPageDescription =
   "Read the latest blog posts about web development, React, Next.js, and software engineering tips.";
-const blogPageImage = "https://the-forge-one.vercel.app/khalid.jpeg";
+const blogPageImage = "https://khaled-the-forge.vercel.app/khalid.jpeg";
 
 export const metadata = generateSEO({
   title: blogPageTitle,

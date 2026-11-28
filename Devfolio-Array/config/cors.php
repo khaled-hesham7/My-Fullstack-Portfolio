@@ -17,7 +17,7 @@ return [
         'http://127.0.0.1:3000',
         'http://localhost:3001',
         'http://127.0.0.1:3001',
-        'https://the-forge-one.vercel.app',
+        'https://khaled-the-forge.vercel.app',
     ],
 
     'allowed_origins_patterns' => [

@@ -8,7 +8,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://the-forge-one.vercel.app"),
+  metadataBase: new URL("https://khaled-the-forge.vercel.app"),
   title: "Khaled Hesham | Backend Developer | The Forge",
   description:
     "Hi, I'm Khaled, a Backend Developer and Social Work student. Explore my projects and articles on PHP, Laravel, and more.",
@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     title: "Khaled Hesham | Backend Developer | The Forge",
     description:
       "Hi, I'm Khaled, a Backend Developer and Social Work student. Explore my projects and articles on PHP, Laravel, and more.",
-    url: "https://the-forge-one.vercel.app/",
+    url: "https://khaled-the-forge.vercel.app/",
     images: ["khalid.jpeg"],
     siteName: "the Forge",
     type: "website",

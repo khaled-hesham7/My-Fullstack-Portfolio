@@ -17,7 +17,7 @@ export function generateSEO({
   title,
   description,
   url,
-  image = "https://the-forge-one.vercel.app/elmohammadi.jpg",
+  image = "https://khaled-the-forge.vercel.app/elmohammadi.jpg",
   keywords,
   siteName = "Khaled Hesham | The Forge",
   type = "website",
@@ -25,7 +25,7 @@ export function generateSEO({
   robots = "index, follow",
 }: SEOProps): Metadata {
   return {
-    metadataBase: new URL("https://the-forge-one.vercel.app"),
+    metadataBase: new URL("https://khaled-the-forge.vercel.app"),
     title,
     description,
     keywords: keywords?.join(", "), 
